@@ -1,4 +1,4 @@
-# Xclipse GPU Lab 0.4 alpha
+# Xclipse GPU Lab 0.5 alpha
 Laboratório Android ARM64 de diagnóstico de GPU. Não contém llama.cpp, modelos de IA, internet, nem treinamento. Projetado para Xclipse 940 / Exynos 2400(e), mas as consultas públicas podem funcionar em outras GPUs.
 
 ## Funcionalidades implementadas no código
@@ -52,3 +52,6 @@ Referências públicas: https://developer.android.com/ndk/guides/graphics/extens
 - Microteste opcional KHR cooperative matrix 16×16×16 FP16/FP32: compilador precisa suportar a extensão e driver precisa anunciar formato, stages e features. Caso contrário SKIP. O teste verifica componentes locais do resultado, não prova hardware WMMA. 
 - Firmware: cabeçalho em hexadecimal, identificação ELF quando reconhecida e hash. Não descompila firmware.
 - Pendências: contadores físicos de desempenho (timestamps não são contadores CU), disassembly de firmware proprietário, catálogo integral de ISA, análise específica de VK_SEC_amigo_profiling além de enumeração/indícios, e validação WMMA nativa. Não força extensões indisponíveis. Build e validação em aparelho necessários.
+
+## 0.5 — coleta e exportação
+Coleta completa sequencial de nove módulos, com diagnósticos nativos em processo separado e preservação dos resultados individuais, inclusive mensagens de falha. Não executa todas as extensões experimentais nem mantém monitoramento contínuo. Exportação de todo o histórico (até 30 capturas) ou da última coleta na sessão atual, em TXT consolidado ou ZIP com arquivos individuais e índice. Exporta conteúdo original, não a prévia truncada nem o filtro de tela. Usa seletor de documentos Android; nenhum upload automático. Teste unitário de TXT/ZIP na CI.

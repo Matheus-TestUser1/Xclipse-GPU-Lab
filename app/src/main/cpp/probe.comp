@@ -1,0 +1,27 @@
+#version 450
+#if TEST == 1 || TEST == 4 || TEST == 5
+#extension GL_KHR_shader_subgroup_basic : require
+#extension GL_KHR_shader_subgroup_arithmetic : require
+#elif TEST == 2
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
+#elif TEST == 3
+#extension GL_EXT_shader_explicit_arithmetic_types_int8 : require
+#endif
+layout(local_size_x=64) in;
+layout(set=0,binding=0,std430) buffer B { uint v[]; } b;
+void main() {
+ uint i=gl_LocalInvocationID.x;
+#if TEST == 1 || TEST == 4 || TEST == 5
+ b.v[i]=(gl_SubgroupSize<<16)|subgroupAdd(1u);
+#elif TEST == 2
+ float16_t x=float16_t(float(b.v[64+i]));
+ float16_t y=x*float16_t(1.5)+float16_t(0.5);
+ b.v[i]=floatBitsToUint(float(y));
+#elif TEST == 3
+ int8_t x=int8_t(b.v[64+i]);
+ int8_t y=x*int8_t(3)+int8_t(1);
+ b.v[i]=uint(int(y));
+#else
+ b.v[i]=b.v[64+i]*7u+3u;
+#endif
+}

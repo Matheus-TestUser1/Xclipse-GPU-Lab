@@ -1,0 +1,89 @@
+# Xclipse 940 MGFX2 observed disassembly; user capture, 2026-11-26. wave|assembly|dwords; no device identifiers.
+32|buffer_store_b32 v1, v0, s[0:3], 0 offen glc|E0684000 80400100
+32|s_delay_alu instid0(SALU_CYCLE_1)|BF870009
+32|s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)|BF870091
+32|s_delay_alu instid0(VALU_DEP_1) | instskip(SKIP_2) | instid1(VALU_DEP_1)|BF8700B1
+32|s_endpgm|BFB00000
+32|s_getpc_b64 s[0:1]|BE804780
+32|s_load_b128 s[0:3], s[0:1], null|F4080000 F8000000
+32|s_mov_b32 exec_lo, lit(0xffff0000)|BEFE00FF FFFF0000
+32|s_mov_b32 exec_lo, vcc_lo|BEFE006A
+32|s_mov_b32 s0, s2|BE800002
+32|s_nand_saveexec_b32 vcc_lo, 0|BEEA2680
+32|s_or_b32 s4, s4, lit(0x00200000)|8C04FF04 00200000
+32|s_set_inst_prefetch_distance 0x0003|BF840003
+32|s_singleuse_vdst { supr0: 1, skip0: 2 }|BF8B0021
+32|s_version { version: UC_VERSION_MGFX2, w32: 1 }|B080400A
+32|s_waitcnt lgkmcnt(0)|BF89FC07
+32|v_add_nc_u32 v2, s4, v2|4A040404
+32|v_add_nc_u32 v2, v2, v2 row_shr:1|4A0404FA FF011102
+32|v_add_nc_u32 v2, v2, v2 row_shr:2|4A0404FA FF011202
+32|v_add_nc_u32 v2, v2, v2 row_shr:4|4A0404FA FF011402
+32|v_add_nc_u32 v2, v2, v2 row_shr:8|4A0404FA FF011802
+32|v_and_b32 v0, lit(0x000003ff), v0|360000FF 000003FF
+32|v_cndmask_b32 v2, 0, 1, vcc_lo|D5010002 01A90280
+32|v_lshlrev_b32 v0, 2, v0|30000082
+32|v_mov_b32 v1, s4|7E020204
+32|v_readlane_b32 s4, v2, 15|D7600004 00011F02
+32|v_readlane_b32 s4, v2, 31|D7600004 00013F02
+64|buffer_gl0_inv|E0AC0000 00000000
+64|buffer_load_b32 v1, v0, s[0:3], 0 offen offset:0x100|E0500100 80400100
+64|buffer_load_b32 v2, v1, s[0:3], 0 offen offset:0x100|E0500100 80400201
+64|buffer_store_b32 v1, v0, s[0:3], 0 offen glc|E0684000 80400100
+64|buffer_store_b32 v2, v1, s[0:3], 0 offen glc|E0684000 80400201
+64|ds_load_b32 v2, v0|D8D80000 02000000
+64|ds_store_b32 v1, v2|D8340000 00000201
+64|s_and_saveexec_b64 s[4:5], s[4:5]|BE842104
+64|s_delay_alu instid0(SALU_CYCLE_1)|BF870009
+64|s_delay_alu instid0(VALU_DEP_1)|BF870001
+64|s_delay_alu instid0(VALU_DEP_1) | instskip(NEXT) | instid1(VALU_DEP_1)|BF870091
+64|s_delay_alu instid0(VALU_DEP_1) | instskip(SKIP_1) | instid1(VALU_DEP_1)|BF8700A1
+64|s_delay_alu instid0(VALU_DEP_1) | instskip(SKIP_2) | instid1(VALU_DEP_1)|BF8700B1
+64|s_delay_alu instid0(VALU_DEP_1) | instskip(SKIP_4) | instid1(VALU_DEP_1)|BF8700D1
+64|s_denorm_mode 0x000d|BF92000D
+64|s_endpgm|BFB00000
+64|s_getpc_b64 s[0:1]|BE804780
+64|s_load_b128 s[0:3], s[0:1], null|F4080000 F8000000
+64|s_mov_b32 s0, s2|BE800002
+64|s_mov_b32 s4, lit(0xffff0000)|BE8400FF FFFF0000
+64|s_mov_b32 s5, lit(0xffff0000)|BE8500FF FFFF0000
+64|s_mov_b64 exec, vcc|BEFE016A
+64|s_movk_i32 s4, 0x0000|B0040000
+64|s_movk_i32 s4, 0xffff|B004FFFF
+64|s_movk_i32 s5, 0xffff|B005FFFF
+64|s_nand_b64 exec, 0, 0|8EFE8080
+64|s_nand_saveexec_b64 vcc, 0|BEEA2780
+64|s_or_b32 s4, s4, lit(0x00400000)|8C04FF04 00400000
+64|s_round_mode 0x000c|BF91000C
+64|s_set_inst_prefetch_distance 0x0003|BF840003
+64|s_singleuse_vdst { supr0: 1, skip0: 1 }|BF8B0011
+64|s_singleuse_vdst { supr0: 1, skip0: 1, supr1: 1, skip1: 1 }|BF8B0491
+64|s_singleuse_vdst { supr0: 1, skip0: 1, supr1: 2, skip1: 1 }|BF8B0511
+64|s_singleuse_vdst { supr0: 1, skip0: 1, supr1: 4, skip1: 1 }|BF8B0611
+64|s_singleuse_vdst { supr0: 1, skip0: 2 }|BF8B0021
+64|s_version { version: UC_VERSION_MGFX2, w64: 1 }|B080200A
+64|s_waitcnt lgkmcnt(0)|BF89FC07
+64|s_waitcnt vmcnt(0)|BF8903F7
+64|v_add_nc_i32 v1, v1, 1|D7260001 00010301
+64|v_add_nc_u32 v1, 3, v1|4A020283
+64|v_add_nc_u32 v2, s4, v2|4A040404
+64|v_add_nc_u32 v2, v2, v2 row_shr:1|4A0404FA FF011102
+64|v_add_nc_u32 v2, v2, v2 row_shr:2|4A0404FA FF011202
+64|v_add_nc_u32 v2, v2, v2 row_shr:4|4A0404FA FF011402
+64|v_add_nc_u32 v2, v2, v2 row_shr:8|4A0404FA FF011802
+64|v_add_nc_u32 v2, v3, v2|4A040503
+64|v_and_b32 v0, lit(0x000003ff), v0|360000FF 000003FF
+64|v_bfe_i32 v1, v1, 0, 8|D6110001 02210101
+64|v_cndmask_b32 v2, 0, 1, vcc|D5010002 01A90280
+64|v_cvt_f32_f16 v1, v1.l|7E021701
+64|v_cvt_f32_u32 v1, v1|7E020D01
+64|v_fma_hp_mixlo_f16 v1, v1, sel_lo(lit(0x00003e00)), 0.5|CC1E4001 13C1FF01 00003E00
+64|v_lshlrev_b32 v0, 2, v0|30000082
+64|v_lshlrev_b32 v1, 2, v0|30020082
+64|v_mov_b32 v1, s4|7E020204
+64|v_mul_i32_i24 v1, 3, v1|12020283
+64|v_mul_lo_u32 v1, v1, 7|D72C0001 00010F01
+64|v_permlanex16_b32 v3, v2, -1, s4 fi:1|D65C0803 00118302
+64|v_readlane_b32 s4, v2, 31|D7600004 00013F02
+64|v_readlane_b32 s4, v2, 63|D7600004 00017F02
+64|v_sub_nc_u32 v0, 63, v0|4C0000BF

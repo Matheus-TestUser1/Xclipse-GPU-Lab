@@ -54,15 +54,82 @@ OpReturn
 OpFunctionEnd
 """
 
+
+def matrix_asm(kind):
+    floating=kind==12
+    signed=kind==13
+    cap='Float16' if floating else 'Int8'
+    types='%narrow = OpTypeFloat 16\n%out = OpTypeFloat 32' if floating else ('%narrow = OpTypeInt 8 1\n%out = OpTypeInt 32 1' if signed else '%narrow = OpTypeInt 8 0')
+    out='%out' if floating or signed else '%uint'
+    convert='OpFConvert' if floating else ('OpSConvert' if signed else 'OpUConvert')
+    signed_flags=' MatrixASignedComponentsKHR|MatrixBSignedComponentsKHR|MatrixCSignedComponentsKHR|MatrixResultSignedComponentsKHR' if signed else ''
+    return f"""OpCapability Shader
+OpCapability GroupNonUniform
+OpCapability {cap}
+OpCapability VulkanMemoryModel
+OpCapability CooperativeMatrixKHR
+OpExtension "SPV_KHR_cooperative_matrix"
+OpMemoryModel Logical Vulkan
+OpEntryPoint GLCompute %main "main" %sub %buf
+OpExecutionMode %main LocalSize 64 1 1
+OpDecorate %sub BuiltIn SubgroupId
+OpDecorate %arr ArrayStride 4
+OpMemberDecorate %block 0 Offset 0
+OpDecorate %block Block
+OpDecorate %buf DescriptorSet 0
+OpDecorate %buf Binding 0
+%void = OpTypeVoid
+%ft = OpTypeFunction %void
+%uint = OpTypeInt 32 0
+{types}
+%pin = OpTypePointer Input %uint
+%sub = OpVariable %pin Input
+%arr = OpTypeRuntimeArray {out}
+%block = OpTypeStruct %arr
+%pblock = OpTypePointer StorageBuffer %block
+%buf = OpVariable %pblock StorageBuffer
+%ptr = OpTypePointer StorageBuffer {out}
+%zero = OpConstant %uint 0
+%one = OpConstant %uint 1
+%two = OpConstant %uint 2
+%scope = OpConstant %uint 3
+%dim = OpConstant %uint 16
+%tile = OpConstant %uint 256
+%inA = OpConstant %uint 512
+%inB = OpConstant %uint 513
+%c0 = OpConstant {out} 0
+%matA = OpTypeCooperativeMatrixKHR %narrow %scope %dim %dim %zero
+%matB = OpTypeCooperativeMatrixKHR %narrow %scope %dim %dim %one
+%matC = OpTypeCooperativeMatrixKHR {out} %scope %dim %dim %two
+%main = OpFunction %void None %ft
+%entry = OpLabel
+%pa = OpAccessChain %ptr %buf %zero %inA
+%pb = OpAccessChain %ptr %buf %zero %inB
+%av = OpLoad {out} %pa
+%bv = OpLoad {out} %pb
+%a = {convert} %narrow %av
+%b = {convert} %narrow %bv
+%ma = OpCompositeConstruct %matA %a
+%mb = OpCompositeConstruct %matB %b
+%mc = OpCompositeConstruct %matC %c0
+%result = OpCooperativeMatrixMulAddKHR %matC %ma %mb %mc{signed_flags}
+%sg = OpLoad %uint %sub
+%off = OpIMul %uint %sg %tile
+%dest = OpAccessChain %ptr %buf %zero %off
+OpCooperativeMatrixStoreKHR %dest %result %zero %dim
+OpReturn
+OpFunctionEnd
+"""
+
 glslc, src, out = sys.argv[1:]
 with tempfile.TemporaryDirectory() as tmp:
     lines = ['#pragma once', '#include <cstdint>']
-    for i in (0,1,2,3,5,4,6,7,8,9):
+    for i in (0,1,2,3,5,4,6,7,8,9,10,11,12,13,14):
         spv = pathlib.Path(tmp) / f'test{i}.spv'
-        if i in (6,7):
+        if i in (6,7,12,13,14):
             assembler, validator = shutil.which('spirv-as'), shutil.which('spirv-val')
             asm=pathlib.Path(tmp)/f'test{i}.spvasm'
-            asm.write_text(dot_asm(8 if i==6 else 16))
+            asm.write_text(dot_asm(8 if i==6 else 16) if i in (6,7) else matrix_asm(i))
             ok=bool(assembler and validator)
             if ok:
                 ok=subprocess.run([assembler,'--target-env','vulkan1.2',str(asm),'-o',str(spv)]).returncode==0
@@ -71,13 +138,13 @@ with tempfile.TemporaryDirectory() as tmp:
         else:
             ok=subprocess.run([glslc, '--target-env=vulkan1.2', f'-DTEST={i}', '-fshader-stage=compute', src, '-o', str(spv)]).returncode==0
         if not ok:
-            if i not in (4,6,7,8,9):
+            if i not in (4,6,7,8,9,10,11,12,13,14):
                 raise SystemExit(1)
             print(f'Optional shader {i} unavailable at build time')
             lines.append(f'static constexpr bool has_probe{i} = false;')
             lines.append(f'static constexpr uint32_t probe{i}[] = {{0}};')
             continue
-        if i in (4,6,7,8,9): lines.append(f'static constexpr bool has_probe{i} = true;')
+        if i in (4,6,7,8,9,10,11,12,13,14): lines.append(f'static constexpr bool has_probe{i} = true;')
         data=spv.read_bytes()
         words=struct.unpack('<'+'I'*(len(data)//4),data)
         lines.append(f'static constexpr uint32_t probe{i}[] = {{'+','.join(hex(w) for w in words)+'};')

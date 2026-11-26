@@ -1,4 +1,4 @@
-# Xclipse GPU Lab 0.6 alpha
+# Xclipse GPU Lab 0.7 alpha
 Laboratório Android ARM64 de diagnóstico de GPU. Não contém llama.cpp, modelos de IA, internet, nem treinamento. Projetado para Xclipse 940 / Exynos 2400(e), mas as consultas públicas podem funcionar em outras GPUs.
 
 ## Funcionalidades implementadas no código
@@ -62,3 +62,10 @@ Coleta completa sequencial de nove módulos, com diagnósticos nativos em proces
 - OpenCL own kernels: UINT32, INT8 arithmetic, scalar INT16 dot expression, FP16 where advertised. Binary returned by compiler exported as hex (up to 256 KiB per kernel); AMD topology attributes queried if extension is advertised. Scalar dot is not native dot evidence.
 - Cross-API topology and evidence report: driver-declared CU counts, private extension advertising and ELF hints, user-reported RADV Mesh Shader and ALU/subgroup cooperative matrix fallback. Not advertised does not imply absent hardware. Native WMMA remains undetermined. No private extension commands invoked; no driver modifications.
 - Complete collection now includes 12 reports, including ISA catalog, OpenCL functional and topology evidence. Build/test via CI; device validation required.
+
+## 0.7 — laboratório de ISA
+- Banco inicial MGFX2: 38 mnemônicos e 88 combinações observadas de wave, assembly e dwords, excluído s_code_end, extraídas da captura de compute Xclipse 940 de 26/11/2026 (sem identificadores pessoais). União com desassemblagem atual que declara asic(MGFX2), categorias SALU, VALU, packed, LDS e memória. Não é uma lista completa do silício.
+- CI usa llvm-mc-18 para montar offline as mesmas instruções/operandos em gfx1100 wave32/wave64 e candidatos adicionais WMMA FP16, BF16, IU8, IU4. Somente palavras produzidas pelo LLVM entram na referência; sintaxe não reconhecida fica UNASSEMBLED. Nenhum opcode é injetado ou executado no GPU. Um encoding diferente pode ser outra forma válida, diferença de sintaxe/operando ou arquitetura; não prova incompatibilidade.
+- Relatórios SGPR/VGPR, wave e metadados KHR/AMD por shader, operações exclusivas observadas por wave. Pares de microtestes packed FP16 e scalar/vector para Wave32/64. O compilador é livre para selecionar instruções, portanto a desassemblagem é analisada em separado.
+- Testes opcionais SPIR-V assembly KHR Cooperative Matrix 16x16x16 FP16/FP32, SINT8/I32 e UINT8/U32, verificados pelo spirv-val antes do build; todos os elementos armazenados e comparados. Só roda se formato/feature/stage anunciados; falha do assembler ou ausência de feature resulta em SKIP. O fallback ALU/subgroup permanece independente. BF16, FP16 accumulator e IU4 são referências offline, não testes funcionais. WMMA física ou codificação móvel alternativa não confirmadas.
+- 16 relatórios na coleta completa, incluindo banco MGFX2, referência GFX1100, registradores/waves e WMMA. Referências: https://gpuopen.com/machine-readable-isa/ ; https://releases.llvm.org/18.1.6/docs/AMDGPU/AMDGPUAsmGFX11.html ; https://github.khronos.org/SPIRV-Registry/extensions/KHR/SPV_KHR_cooperative_matrix.html . Para build local, gerar asset GFX1100 com tools/generate_isa_reference.py e llvm-mc-18. O aplicativo trata ausência do asset explicitamente. Build novo e testes no aparelho pendentes.

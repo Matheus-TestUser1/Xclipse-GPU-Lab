@@ -22,17 +22,20 @@ jobs:
         run: |
           if ! command -v glslc >/dev/null; then sudo apt-get update && sudo apt-get install -y glslc; fi
           if ! command -v spirv-as >/dev/null || ! command -v spirv-val >/dev/null; then sudo apt-get update && sudo apt-get install -y spirv-tools; fi
+          if ! command -v llvm-mc-18 >/dev/null; then sudo apt-get update && sudo apt-get install -y llvm-18; fi
+          python3 tools/generate_isa_reference.py "$(command -v llvm-mc-18)" app/src/main/assets/mgfx2-observed.txt app/src/main/assets/gfx1100-reference.tsv
           sdkmanager 'platforms;android-35' 'build-tools;35.0.0' 'ndk;27.2.12479018' 'cmake;3.22.1'
           git clone --depth 1 --branch v1.4.321 https://github.com/KhronosGroup/Vulkan-Headers.git "$RUNNER_TEMP/Vulkan-Headers"
           echo "VULKAN_HEADERS=$RUNNER_TEMP/Vulkan-Headers/include" >> "$GITHUB_ENV"
       - name: Test capability classification and registry generator
         run: |
           mkdir -p /tmp/gpulab-test
-          javac -d /tmp/gpulab-test app/src/main/java/dev/xclipse/gpulab/{Audit,Kernel,Libraries,Elf,DeepLibraries,Research,ReportBundle,IsaLab}.java tests/AuditTest.java tests/ResearchTest.java tests/ReportBundleTest.java tests/IsaLabTest.java
+          javac -d /tmp/gpulab-test app/src/main/java/dev/xclipse/gpulab/{Audit,Kernel,Libraries,Elf,DeepLibraries,Research,ReportBundle,IsaLab,ArchitectureLab}.java tests/AuditTest.java tests/ResearchTest.java tests/ReportBundleTest.java tests/IsaLabTest.java tests/ArchitectureLabTest.java
           java -cp /tmp/gpulab-test dev.xclipse.gpulab.AuditTest
           java -cp /tmp/gpulab-test dev.xclipse.gpulab.ResearchTest
           java -cp /tmp/gpulab-test dev.xclipse.gpulab.ReportBundleTest
           java -cp /tmp/gpulab-test dev.xclipse.gpulab.IsaLabTest
+          java -cp /tmp/gpulab-test dev.xclipse.gpulab.ArchitectureLabTest
           python3 tools/generate_compute.py "$(command -v glslc)" app/src/main/cpp/probe.comp /tmp/gpulab-test/compute_generated.inc
           python3 tools/generate_registry.py "$VULKAN_HEADERS/../registry/vk.xml" /tmp/gpulab-test/registry.inc
           test -s /tmp/gpulab-test/registry.inc

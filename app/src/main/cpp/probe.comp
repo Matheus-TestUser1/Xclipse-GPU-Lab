@@ -5,6 +5,10 @@
 #elif TEST == 9
 #extension GL_KHR_shader_subgroup_basic : require
 #extension GL_KHR_shader_subgroup_shuffle : require
+#elif TEST == 10
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
+#elif TEST == 11
+#extension GL_KHR_shader_subgroup_basic : require
 #elif TEST == 2
 #extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
 #elif TEST == 3
@@ -46,6 +50,15 @@ void main() {
  uint bad=0u;
  for(int j=0;j<z.length();j++) if(z[j]!=32.0) bad++;
  b.v[i]=bad;
+#elif TEST == 10
+ float16_t a=float16_t(float(b.v[64+i]));
+ f16vec2 x=f16vec2(a,a+float16_t(1.0));
+ f16vec2 y=fma(x,f16vec2(float16_t(1.5)),f16vec2(float16_t(0.5)));
+ b.v[i]=floatBitsToUint(float(y.x)+float(y.y));
+#elif TEST == 11
+ uint uniformValue=subgroupBroadcastFirst(b.v[64]);
+ uint a=b.v[64+i];
+ b.v[i]=(a*7u+uniformValue*3u)^i;
 #elif TEST == 9
  uint cell=gl_SubgroupInvocationID%16u;
  uint row=cell/4u, col=cell%4u;

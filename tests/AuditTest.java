@@ -1,0 +1,2 @@
+package dev.xclipse.gpulab;
+class AuditTest {public static void main(String[] args){String x=Audit.summarize("[GPU] Xclipse\n[Device extensions: anunciadas]\nVK_EXT_x r1\nVK_EXT_y r1\n[Registry audit]\nAUDIT|VkTest|VK_EXT_x|1|2|0\nAUDIT|VkOther|CORE|0|2|0\nAUDIT|VkBad|CORE|0|0|1");for(String t:new String[]{"PARCIAL","DESATIVADAS","INCONSISTENTE","VK_EXT_y | ANUNCIADA / SEM AUDITORIA"})if(!x.contains(t))throw new AssertionError(t);System.out.println("PASS Audit");}}

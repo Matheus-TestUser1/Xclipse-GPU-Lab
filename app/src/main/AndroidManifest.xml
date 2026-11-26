@@ -1,0 +1,7 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+ <application android:label="Xclipse GPU Lab" android:theme="@android:style/Theme.Material.NoActionBar" android:allowBackup="false">
+  <uses-native-library android:name="libOpenCL.so" android:required="false" />
+  <activity android:name=".ProbeActivity" android:process=":probe" android:exported="false" android:configChanges="orientation|screenSize|keyboardHidden" />
+  <activity android:name=".MainActivity" android:exported="true" android:configChanges="orientation|screenSize|keyboardHidden"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity>
+ </application>
+</manifest>

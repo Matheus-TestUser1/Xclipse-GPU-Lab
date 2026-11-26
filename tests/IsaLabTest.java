@@ -1,0 +1,2 @@
+package dev.xclipse.gpulab;
+class IsaLabTest {public static void main(String[] args){String a="[TEST] FP16 |\nasic(MGFX2)\nwave_size(32)\n v_fma_hp_mixlo_f16 v0, v1 // 00000004: D0000000 12345678\n s_code_end // 0000000C: BF9F0000\nPASS mismatch=0/64\n";String b=a.replace("MGFX2","gfx1100").replace("D0000000","D1000000");if(IsaLab.parse(a).ops.size()!=1||!IsaLab.catalog(a).contains("D0000000")||!IsaLab.compare(a,b).contains("exact observed word matches=0"))throw new AssertionError("ISA parser");System.out.println("PASS ISA parser");}}

@@ -1,4 +1,4 @@
-# Xclipse GPU Lab 0.5 alpha
+# Xclipse GPU Lab 0.6 alpha
 Laboratório Android ARM64 de diagnóstico de GPU. Não contém llama.cpp, modelos de IA, internet, nem treinamento. Projetado para Xclipse 940 / Exynos 2400(e), mas as consultas públicas podem funcionar em outras GPUs.
 
 ## Funcionalidades implementadas no código
@@ -55,3 +55,10 @@ Referências públicas: https://developer.android.com/ndk/guides/graphics/extens
 
 ## 0.5 — coleta e exportação
 Coleta completa sequencial de nove módulos, com diagnósticos nativos em processo separado e preservação dos resultados individuais, inclusive mensagens de falha. Não executa todas as extensões experimentais nem mantém monitoramento contínuo. Exportação de todo o histórico (até 30 capturas) ou da última coleta na sessão atual, em TXT consolidado ou ZIP com arquivos individuais e índice. Exporta conteúdo original, não a prévia truncada nem o filtro de tela. Usa seletor de documentos Android; nenhum upload automático. Teste unitário de TXT/ZIP na CI.
+
+## 0.6 — MGFX2 / cross-driver research
+- ISA catalog: parse mnemonics, architecture and wave tags, and instruction words from driver-reported disassembly. Compare imported equivalent compute logs (Samsung vs RADV/ACO). Exact word mismatch is not proof of opcode incompatibility; operands and register allocation affect encoding.
+- Vulkan functional tests: SPIR-V OpSDotKHR INT8/INT16, FP32 buffer atomic add when feature is advertised, 4x4 matrix multiplication via ALU/subgroup shuffle without cooperative matrix extension. Optional shaders that cannot be built are reported as SKIP. Tests need the required active-driver features, not raw opcode injection.
+- OpenCL own kernels: UINT32, INT8 arithmetic, scalar INT16 dot expression, FP16 where advertised. Binary returned by compiler exported as hex (up to 256 KiB per kernel); AMD topology attributes queried if extension is advertised. Scalar dot is not native dot evidence.
+- Cross-API topology and evidence report: driver-declared CU counts, private extension advertising and ELF hints, user-reported RADV Mesh Shader and ALU/subgroup cooperative matrix fallback. Not advertised does not imply absent hardware. Native WMMA remains undetermined. No private extension commands invoked; no driver modifications.
+- Complete collection now includes 12 reports, including ISA catalog, OpenCL functional and topology evidence. Build/test via CI; device validation required.

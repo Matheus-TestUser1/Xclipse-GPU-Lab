@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22.1)
 project(gpulab LANGUAGES CXX)
-add_library(gpulab SHARED scanner.cpp compute.cpp)
+add_library(gpulab SHARED scanner.cpp compute.cpp opencl_compute.cpp)
 target_compile_features(gpulab PRIVATE cxx_std_17)
 if(REGISTRY_HEADERS)
  target_include_directories(gpulab BEFORE PRIVATE ${REGISTRY_HEADERS})

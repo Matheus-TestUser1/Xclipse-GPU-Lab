@@ -13,7 +13,7 @@ final class Research {
  {"Cooperative matrix / WMMA candidate","VK_KHR_cooperative_matrix","cooperativeMatrix"},
  {"Atomic float","VK_EXT_shader_atomic_float","shaderBufferFloat32Atomics","shaderBufferFloat32AtomicAdd"},
  {"Atomic float2","VK_EXT_shader_atomic_float2","shaderBufferFloat16Atomics","shaderBufferFloat16AtomicAdd"},
- {"Mesh shader (RADV prior user observation)","VK_EXT_mesh_shader","meshShader","taskShader"},
+ {"Mesh shader (RADV execution reported by user)","VK_EXT_mesh_shader","meshShader","taskShader"},
  {"Ray query","VK_KHR_ray_query","rayQuery"},
  {"Shader executable metadata","VK_KHR_pipeline_executable_properties","pipelineExecutableInfo"},
  {"AMD shader information","VK_AMD_shader_info"},
@@ -29,11 +29,11 @@ final class Research {
   Set<String> ex=extensions(vk);Map<String,Set<String>> fs=fields(vk);
   for(String[] a:ITEMS){boolean core=a[1].equals("CORE"),adv=ex.contains(a[1]);boolean hint=!core&&!adv&&elf.contains(a[1]);int yes=0,no=0;boolean conflict=false;
    for(int i=2;i<a.length;i++){Set<String> v=fs.get(a[i]);if(v==null)continue;if(v.size()>1)conflict=true;if(a[i].startsWith("shader")&&!a[i].equals("shaderEngineCount")||a[i].equals("integerDotProduct8BitSignedAccelerated")||a[i].equals("subgroupSizeControl")||a[i].equals("cooperativeMatrix")||a[i].equals("meshShader")||a[i].equals("taskShader")||a[i].equals("rayQuery")||a[i].equals("pipelineExecutableInfo")||a[i].equals("performanceCounterQueryPools")){if(v.contains("1"))yes++;if(v.contains("0"))no++;}}
-   b.append("\n").append(a[0]).append(" | ").append(vk.isEmpty()?"INCONCLUSIVE":conflict?"CONFLICTING VALUES":yes>0&&no>0?"PARTIAL (optional bits)":yes>0?"FEATURE BIT TRUE":no>0?"FEATURE BIT FALSE":adv?"ADVERTISED / NOT FUNCTIONALLY TESTED":core?"LIMIT / INCONCLUSIVE":hint?"ELF HINT ONLY":"NOT ADVERTISED").append('\n');
+   b.append("\n").append(a[0]).append(" | ").append(vk.isEmpty()?"INCONCLUSIVE":conflict?"CONFLICTING VALUES":yes>0&&no>0?"PARTIAL (optional bits)":yes>0?"FEATURE BIT TRUE":no>0?"FEATURE BIT FALSE":adv?"ADVERTISED / NOT FUNCTIONALLY TESTED":core?"LIMIT / INCONCLUSIVE":hint?"ELF HINT ONLY":"NOT ADVERTISED BY ACTIVE DRIVER (silicon undetermined)").append('\n');
    if(!core)b.append("  ").append(a[1]).append('\n');for(int i=2;i<a.length;i++)if(fs.containsKey(a[i]))b.append("  ").append(a[i]).append('=').append(fs.get(a[i])).append('\n');
   }
   b.append("\n[Actual compute test report, if run]\n").append(tests.isEmpty()?"Not run.\n":tests);
-  return b.append("\nISA candidates: v_pk_fma_f16, v_dot4_i32_i8, v_wmma_f32_16x16x16_f16, wave32/wave64, LDS. Shader tests validate API operations, not exact machine opcodes. WMMA/MFMA silicon support remains unproven.\n").toString();
+  return b.append("\nISA candidates: v_pk_fma_f16, v_dot4_i32_i8, v_wmma_f32_16x16x16_f16, wave32/wave64, LDS. Shader tests validate API operations; disassembly is separate evidence of emitted instructions. User reports RADV Mesh Shader and cooperative-matrix fallback via ALU/subgroups. Native WMMA/MFMA remains undetermined.\n").toString();
  }
  static String group(int group,String vk,String elf,String tests){
   if(group==6)return profile(vk,elf,tests);

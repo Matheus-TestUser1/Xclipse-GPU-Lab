@@ -2,10 +2,15 @@
 #if TEST == 1
 #extension GL_KHR_shader_subgroup_basic : require
 #extension GL_KHR_shader_subgroup_arithmetic : require
+#elif TEST == 9
+#extension GL_KHR_shader_subgroup_basic : require
+#extension GL_KHR_shader_subgroup_shuffle : require
 #elif TEST == 2
 #extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
 #elif TEST == 3
 #extension GL_EXT_shader_explicit_arithmetic_types_int8 : require
+#elif TEST == 8
+#extension GL_EXT_shader_atomic_float : require
 #elif TEST == 4
 #extension GL_KHR_cooperative_matrix : require
 #extension GL_KHR_memory_scope_semantics : require
@@ -13,7 +18,11 @@
 #pragma use_vulkan_memory_model
 #endif
 layout(local_size_x=64) in;
+#if TEST == 8
+layout(set=0,binding=0,std430) buffer B { float v[]; } b;
+#else
 layout(set=0,binding=0,std430) buffer B { uint v[]; } b;
+#endif
 #if TEST == 5
 shared uint scratch[64];
 #endif
@@ -37,6 +46,17 @@ void main() {
  uint bad=0u;
  for(int j=0;j<z.length();j++) if(z[j]!=32.0) bad++;
  b.v[i]=bad;
+#elif TEST == 9
+ uint cell=gl_SubgroupInvocationID%16u;
+ uint row=cell/4u, col=cell%4u;
+ float seed=float(b.v[64]);
+ float av=float(row+col)+seed, bv=float(row+col)+seed;
+ float sum=0.0;
+ for(uint k=0u;k<4u;k++)sum+=subgroupShuffle(av,row*4u+k)*subgroupShuffle(bv,k*4u+col);
+ b.v[i]=(cell<<16)|uint(sum);
+#elif TEST == 8
+ atomicAdd(b.v[i],1.5);
+ atomicAdd(b.v[i],2.5);
 #elif TEST == 5
  scratch[i]=b.v[64+i];
  barrier();

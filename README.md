@@ -1,4 +1,4 @@
-# Xclipse GPU Lab 0.3 alpha
+# Xclipse GPU Lab 0.4 alpha
 Laboratório Android ARM64 de diagnóstico de GPU. Não contém llama.cpp, modelos de IA, internet, nem treinamento. Projetado para Xclipse 940 / Exynos 2400(e), mas as consultas públicas podem funcionar em outras GPUs.
 
 ## Funcionalidades implementadas no código
@@ -45,3 +45,10 @@ Referências públicas: https://developer.android.com/ndk/guides/graphics/extens
 - Testes compute SPIR-V em processo separado: UINT32, subgroup arithmetic, FP16, INT8 e tamanho de subgroup requerido 32/64 quando anunciado. Um workgroup de 64 invocações, leitura e verificação contra resultados esperados; PASS/FAIL/SKIP/INCONCLUSIVE. Timeout de fence 5 s encerra o processo de teste; travamento no driver ainda pode afetar o sistema. Não força recursos desanunciados. A precisão de uma operação de shader não confirma a instrução ISA usada, nem suporte WMMA. Tempos são CPU submit-to-fence, não timestamps físicos. Testes requerem Vulkan 1.2 e memória host coherent.
 - CI: compila SPIR-V com glslc, testa parser/classificação e gera APK. O build anterior da v0.2 foi bem-sucedido no GitHub; a v0.3 precisa de novo build e execução real.
 - Pendentes: microtestes cooperative matrix/WMMA, validação de ISA específica via desassemblagem de shader, amostragem de contadores físicos, análise de firmware além de metadados, investigação da extensão privada Samsung, análise de bibliotecas sem seções, evidência de layout real e testes de extensões não anunciadas via driver alternativo. Nenhuma mudança no kernel, firmware, SELinux ou driver original.
+
+## 0.4 — interface e investigação de shaders
+- Interface Android nativa com quatro áreas, tema escuro, cartões de diagnóstico, mapa lógico selecionável, filtro de relatório, ícone próprio e histórico local limitado a 30 capturas. Exportação TXT continua preservando o relatório completo.
+- Microteste LDS, timestamps GPU quando suportados e consulta de disassembly/estatísticas AMD e representações internas KHR em pipelines próprios. As representações retornadas podem ser IR intermediária, não ISA nativa. Nenhuma execução direta de opcodes.
+- Microteste opcional KHR cooperative matrix 16×16×16 FP16/FP32: compilador precisa suportar a extensão e driver precisa anunciar formato, stages e features. Caso contrário SKIP. O teste verifica componentes locais do resultado, não prova hardware WMMA. 
+- Firmware: cabeçalho em hexadecimal, identificação ELF quando reconhecida e hash. Não descompila firmware.
+- Pendências: contadores físicos de desempenho (timestamps não são contadores CU), disassembly de firmware proprietário, catálogo integral de ISA, análise específica de VK_SEC_amigo_profiling além de enumeração/indícios, e validação WMMA nativa. Não força extensões indisponíveis. Build e validação em aparelho necessários.

@@ -1,17 +1,25 @@
 #version 450
-#if TEST == 1 || TEST == 4 || TEST == 5
+#if TEST == 1
 #extension GL_KHR_shader_subgroup_basic : require
 #extension GL_KHR_shader_subgroup_arithmetic : require
 #elif TEST == 2
 #extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
 #elif TEST == 3
 #extension GL_EXT_shader_explicit_arithmetic_types_int8 : require
+#elif TEST == 4
+#extension GL_KHR_cooperative_matrix : require
+#extension GL_KHR_memory_scope_semantics : require
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
+#pragma use_vulkan_memory_model
 #endif
 layout(local_size_x=64) in;
 layout(set=0,binding=0,std430) buffer B { uint v[]; } b;
+#if TEST == 5
+shared uint scratch[64];
+#endif
 void main() {
  uint i=gl_LocalInvocationID.x;
-#if TEST == 1 || TEST == 4 || TEST == 5
+#if TEST == 1
  b.v[i]=(gl_SubgroupSize<<16)|subgroupAdd(1u);
 #elif TEST == 2
  float16_t x=float16_t(float(b.v[64+i]));
@@ -21,6 +29,18 @@ void main() {
  int8_t x=int8_t(b.v[64+i]);
  int8_t y=x*int8_t(3)+int8_t(1);
  b.v[i]=uint(int(y));
+#elif TEST == 4
+ coopmat<float16_t,gl_ScopeSubgroup,16,16,gl_MatrixUseA> a=coopmat<float16_t,gl_ScopeSubgroup,16,16,gl_MatrixUseA>(float16_t(float(b.v[64])));
+ coopmat<float16_t,gl_ScopeSubgroup,16,16,gl_MatrixUseB> x=coopmat<float16_t,gl_ScopeSubgroup,16,16,gl_MatrixUseB>(float16_t(float(b.v[65])));
+ coopmat<float,gl_ScopeSubgroup,16,16,gl_MatrixUseAccumulator> z=coopmat<float,gl_ScopeSubgroup,16,16,gl_MatrixUseAccumulator>(0.0);
+ z=coopMatMulAdd(a,x,z);
+ uint bad=0u;
+ for(int j=0;j<z.length();j++) if(z[j]!=32.0) bad++;
+ b.v[i]=bad;
+#elif TEST == 5
+ scratch[i]=b.v[64+i];
+ barrier();
+ b.v[i]=scratch[63-i];
 #else
  b.v[i]=b.v[64+i]*7u+3u;
 #endif

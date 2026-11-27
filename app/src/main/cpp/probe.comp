@@ -1,5 +1,8 @@
 #version 450
-#if TEST == 1
+#if TEST >= 15
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
+#extension GL_KHR_shader_subgroup_basic : require
+#elif TEST == 1
 #extension GL_KHR_shader_subgroup_basic : require
 #extension GL_KHR_shader_subgroup_arithmetic : require
 #elif TEST == 9
@@ -9,6 +12,7 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
 #elif TEST == 11
 #extension GL_KHR_shader_subgroup_basic : require
+#extension GL_KHR_shader_subgroup_ballot : require
 #elif TEST == 2
 #extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
 #elif TEST == 3
@@ -32,7 +36,24 @@ shared uint scratch[64];
 #endif
 void main() {
  uint i=gl_LocalInvocationID.x;
-#if TEST == 1
+#if TEST >= 15
+ f16vec2 x=f16vec2(unpackHalf2x16(b.v[128+i]));
+ f16vec2 y=f16vec2(unpackHalf2x16(b.v[192+i]));
+ f16vec2 z=f16vec2(unpackHalf2x16(b.v[256+i]));
+ f16vec2 answer;
+ #if ((TEST-15)%3) == 0
+ answer.x=fma(x.x,y.x,z.x);
+ answer.y=fma(x.y,y.y,z.y);
+ #elif ((TEST-15)%3) == 1
+ answer=fma(x,y,z);
+ #else
+ precise f16vec2 product=x*y;
+ precise f16vec2 sum=product+z;
+ answer=sum;
+ #endif
+ b.v[i]=packHalf2x16(vec2(answer));
+ b.v[64+i]=gl_SubgroupSize;
+#elif TEST == 1
  b.v[i]=(gl_SubgroupSize<<16)|subgroupAdd(1u);
 #elif TEST == 2
  float16_t x=float16_t(float(b.v[64+i]));

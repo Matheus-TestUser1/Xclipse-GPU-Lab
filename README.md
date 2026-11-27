@@ -1,4 +1,4 @@
-# Xclipse GPU Lab 0.8 alpha
+# Xclipse GPU Lab 0.9 alpha
 Laboratório Android ARM64 de diagnóstico de GPU. Não contém llama.cpp, modelos de IA, internet, nem treinamento. Projetado para Xclipse 940 / Exynos 2400(e), mas as consultas públicas podem funcionar em outras GPUs.
 
 ## Funcionalidades implementadas no código
@@ -79,3 +79,16 @@ Coleta completa sequencial de nove módulos, com diagnósticos nativos em proces
 - Reúne as declarações de modelo, CUs e waves de Kernel/Vulkan/OpenCL sem somar dispositivos nem afirmar que as APIs se referem ao mesmo dispositivo. Não valida WMMA, não amostra contadores físicos, não desbloqueia NPU. O inventário de firmware permanece na consulta Firmware existente.
 - Monitor inclui SKI e utilização SGPU. Consultas do kernel preservam a saída parcial em timeout e sinalizam truncamento. Nenhum controle de frequência, profiling, MMIO, reset, tracing ou permissão é escrito.
 - Validação local: sete suítes Java passaram, incluindo execução do coletor sobre sysfs artificial, aliases, exclusão de CPU, erros, UTF-8, tabelas, capturas parciais e exportação TXT/ZIP. Compilação Android e execução real devem ser verificadas separadamente; testes locais não validam acesso aos sensores ou funcionamento no S24 FE.
+
+
+## 0.9 — investigação FMA MGFX2 para RADV/ACO
+- Arquitetura → **FMA MGFX2 / RADV** executa uma nova bateria em processo separado. **Evidências FMA / ACO** reúne resultados por shader e as palavras de instruções retornadas pelo driver. Coleta completa passa a 19 relatórios.
+- Nove shaders SPIR-V: `fma` escalar por componente, `fma` de vetor FP16 de dois componentes e multiplicação/soma com `precise`/`NoContraction`; cada caminho com modo padrão, RTE16 e RTZ16. Cada shader é tentado em subgroup padrão, Wave32 e Wave64: até 27 configurações, somente com features/modos anunciados.
+- Corpus determinístico de 128 triplas FP16, obtidas de buffers em tempo de execução, com operandos diferentes nas metades baixa/alta, sinais variados, empates de arredondamento e cancelamento que diferencia fusão. Oráculo inteiro exato em unidades de 2^-48; classifica correspondência com fused-RTE, fused-RTZ, split-RTE e split-RTZ. Corpus exclui subnormais/NaN/infinito, e o comparador ignora sinal de zero. Modos explicitamente solicitados são verificados apenas no controle split; `GLSL.std.450 Fma` é observacional porque Vulkan não garante fusão para essa instrução.
+- Cada pipeline executa duas vezes. A segunda execução muda somente o primeiro componente de A na lane 0; registra se outros 127 componentes mudaram. Nenhum shuffle é usado nesse shader. O resultado caracteriza o shader completo: não isola uma única instrução, não demonstra um datapath coletivo e não prova ou refuta WMMA.
+- Exporta operandos/resultados FP16 em hexadecimal, quatro referências por elemento e fase, tamanho de subgroup reportado pelo shader, versão do compilador SPIR-V e impressão FNV-1a de cada binário. A captura existente de ISA AMD/KHR e registradores permanece vinculada ao mesmo teste. Não é benchmark.
+- Interpreta `OP[22:16]` para palavras que seguem o cabeçalho VOP3P e mostra referência RDNA3 para FMA/WMMA, sem equiparar semanticamente a variante Samsung `hp` em 0x1e a `mixlo` 0x21 ou WMMA 0x40. Nenhuma instrução bruta é injetada, nenhum recurso não anunciado é forçado e nenhum driver é modificado.
+- Corrige o shader scalar/vector anterior para solicitar a extensão GLSL subgroup ballot necessária a `subgroupBroadcastFirst`, com verificação do bit Vulkan correspondente.
+- Build exige glslc, spirv-dis, spirv-as e spirv-val. Os nove shaders novos são obrigatórios e validados no build, incluindo presença de Float16, Fma e NoContraction nos caminhos aplicáveis; falha neles interrompe a compilação em vez de entregar uma bateria vazia.
+- Testes locais: oito suítes Java; referência C++ comparada com conversões de precisão do host para o corpus, empates/cancelamento e round-trip de 24.576 representações half; UBSan sem erro. Shaders novos gerados/validados com shaderc 2023.2 e SPIRV-Tools 2023.1; sintaxe C++ com headers Vulkan v1.4.321. Build Android e execução no S24 FE são verificações separadas.
+- Referências: https://www.amd.com/content/dam/amd/en/documents/radeon-tech-docs/instruction-set-architectures/rdna3-shader-instruction-set-architecture-feb-2023_0.pdf ; https://github.khronos.org/SPIRV-Registry/extensions/KHR/SPV_KHR_float_controls.html ; https://docs.vulkan.org/refpages/latest/refpages/source/VK_KHR_shader_fma.html .

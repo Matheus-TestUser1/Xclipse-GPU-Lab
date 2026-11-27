@@ -1,4 +1,4 @@
-# Xclipse GPU Lab 0.7 alpha
+# Xclipse GPU Lab 0.8 alpha
 Laboratório Android ARM64 de diagnóstico de GPU. Não contém llama.cpp, modelos de IA, internet, nem treinamento. Projetado para Xclipse 940 / Exynos 2400(e), mas as consultas públicas podem funcionar em outras GPUs.
 
 ## Funcionalidades implementadas no código
@@ -69,3 +69,13 @@ Coleta completa sequencial de nove módulos, com diagnósticos nativos em proces
 - Relatórios SGPR/VGPR, wave e metadados KHR/AMD por shader, operações exclusivas observadas por wave. Pares de microtestes packed FP16 e scalar/vector para Wave32/64. O compilador é livre para selecionar instruções, portanto a desassemblagem é analisada em separado.
 - Testes opcionais SPIR-V assembly KHR Cooperative Matrix 16x16x16 FP16/FP32, SINT8/I32 e UINT8/U32, verificados pelo spirv-val antes do build; todos os elementos armazenados e comparados. Só roda se formato/feature/stage anunciados; falha do assembler ou ausência de feature resulta em SKIP. O fallback ALU/subgroup permanece independente. BF16, FP16 accumulator e IU4 são referências offline, não testes funcionais. WMMA física ou codificação móvel alternativa não confirmadas.
 - 16 relatórios na coleta completa, incluindo banco MGFX2, referência GFX1100, registradores/waves e WMMA. Referências: https://gpuopen.com/machine-readable-isa/ ; https://releases.llvm.org/18.1.6/docs/AMDGPU/AMDGPUAsmGFX11.html ; https://github.khronos.org/SPIRV-Registry/extensions/KHR/SPV_KHR_cooperative_matrix.html . Para build local, gerar asset GFX1100 com tools/generate_isa_reference.py e llvm-mc-18. O aplicativo trata ausência do asset explicitamente. Build novo e testes no aparelho pendentes.
+
+
+## 0.8 — SGPU Native Inspector
+- Nova consulta em Diagnóstico e 17º relatório da coleta completa: SKI `/sys/kernel/gpu`, devfreq da GPU, memória GTT/VRAM em sysfs DRM e térmicos G3D. Deduplica aliases de devfreq/DRM pelo caminho canônico, limita a descoberta e preserva o caminho original. Não abre os dispositivos DRM nem emite ioctls.
+- Referência de código consultada: [kernel S24 FE, OS-14, commit 3367aefe](https://github.com/Elchanz3/android_kernel_samsung_r12s/tree/3367aefe4a06fd7dff66d79010e60681637b8336/drivers/gpu/drm/samsung/gpu/sgpu). Arquivos: `exynos_gpu_interface.c`, `sgpu_user_interface.c`, `sgpu_governor.c`, `amdgpu_gtt_mgr.c` e `amdgpu_vram_mgr.c`. É uma referência de um kernel customizado, não identificação automática do kernel instalado.
+- Explica a procedência de `gpu_busy`, `current_utilization`, `current_cu_utilization`, `time_in_state` e `total_kernel_pages`. A carga do governor é ponderada por `compute_weight`; utilização de CU não é quantidade de CUs. Frequências/temperatura ficam brutas, sem adivinhar unidades da ROM.
+- Cada leitura informa READ, UNAVAILABLE, EMPTY, TRUNCATED ou INCOMPLETE, conserva erros e tabelas multilinha e inclui a captura bruta. Falha não é classificada como ausência de hardware. Limites: 8193 bytes por nó (limite sinalizado), 512 KiB por processo, 15 segundos e até 16 diretórios por grupo de descoberta. O modo normal pode ver poucos caminhos; root é opcional via seleção já existente.
+- Reúne as declarações de modelo, CUs e waves de Kernel/Vulkan/OpenCL sem somar dispositivos nem afirmar que as APIs se referem ao mesmo dispositivo. Não valida WMMA, não amostra contadores físicos, não desbloqueia NPU. O inventário de firmware permanece na consulta Firmware existente.
+- Monitor inclui SKI e utilização SGPU. Consultas do kernel preservam a saída parcial em timeout e sinalizam truncamento. Nenhum controle de frequência, profiling, MMIO, reset, tracing ou permissão é escrito.
+- Validação local: sete suítes Java passaram, incluindo execução do coletor sobre sysfs artificial, aliases, exclusão de CPU, erros, UTF-8, tabelas, capturas parciais e exportação TXT/ZIP. Compilação Android e execução real devem ser verificadas separadamente; testes locais não validam acesso aos sensores ou funcionamento no S24 FE.

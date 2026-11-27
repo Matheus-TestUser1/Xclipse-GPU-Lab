@@ -34,12 +34,45 @@ layout(set=0,binding=0,std430) buffer B { uint v[]; } b;
 #if TEST == 5
 shared uint scratch[64];
 #endif
-#if TEST >= 42 && (((TEST-42)%9)==1 || ((TEST-42)%9)==5)
+#if TEST >= 42 && TEST < 69 && (((TEST-42)%9)==1 || ((TEST-42)%9)==5)
 layout(push_constant) uniform Coefficients { uint b; uint c; } coefficients;
 #endif
 void main() {
  uint i=gl_LocalInvocationID.x;
-#if TEST >= 42
+#if TEST >= 69
+ #define HPR_KIND ((TEST-69)%12)
+ #define HPR_POSITION (HPR_KIND/4)
+ #define HPR_OP (HPR_KIND%4)
+ #if HPR_POSITION == 0
+ float a=uintBitsToFloat(b.v[128+i]);
+ #else
+ float a=unpackHalf2x16(b.v[320+i]).x;
+ #endif
+ #if HPR_POSITION == 1
+ float y=uintBitsToFloat(b.v[192+i]);
+ #else
+ float y=unpackHalf2x16(b.v[384+i]).x;
+ #endif
+ #if HPR_POSITION == 2
+ float z=uintBitsToFloat(b.v[256+i]);
+ #else
+ float z=unpackHalf2x16(b.v[448+i]).x;
+ #endif
+ float16_t ah=float16_t(a),bh=float16_t(y),ch=float16_t(z);
+ float result;
+ #if HPR_OP == 0
+ result=float(fma(ah,bh,ch));
+ #elif HPR_OP == 1
+ result=float(ah*bh+ch);
+ #elif HPR_OP == 2
+ result=fma(float(ah),float(bh),float(ch));
+ #else
+ precise float16_t product=ah*bh;
+ precise float16_t answer=product+ch;
+ result=float(answer);
+ #endif
+ b.v[i]=floatBitsToUint(result);b.v[64+i]=gl_SubgroupSize;
+#elif TEST >= 42
  #define HPO_KIND ((TEST-42)%9)
  float source=uintBitsToFloat(b.v[128+i]);
  float16_t x=float16_t(source);

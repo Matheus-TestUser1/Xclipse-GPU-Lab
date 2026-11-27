@@ -7,6 +7,7 @@ static long double hv(uint16_t h){return std::ldexp((long double)units24(h),-24)
 static uint16_t hround(long double x,bool rtz){_Float16 f=(_Float16)x;uint16_t h;std::memcpy(&h,&f,2);if(rtz&&std::fabs(hv(h))>std::fabs(x))h--;return h;}
 static long double fround(long double x){volatile float f=(float)x;return f;}
 static uint32_t bits(long double x){float f=(float)x;uint32_t b;std::memcpy(&b,&f,4);return b;}
+static uint32_t bitsRtz(long double x){float f=(float)x;if(std::fabs((long double)f)>std::fabs(x))f=std::nextafter(f,0.0f);return bits(f);}
 static uint32_t hbits(long double x,bool rtz){return bits(hv(hround(x,rtz)));}
 int main(){
  uint32_t data[640]{};hp_operands::initialize(data);unsigned count=0,fullPrecision=0,fusedSplit=0;
@@ -22,6 +23,11 @@ int main(){
     check(equivalent(m[2+r],hbits(p+c,r)),"early half split");
     check(equivalent(m[4+r],bits(ea*b+c)),"early full FP32");
     check(equivalent(m[6+r],bits(p+c)),"half product FP32 sum");
+    check(equivalent(m[16+r],bitsRtz(ea*b+c)),"early FP32 RTZ output independent oracle");
+    for(unsigned pr=0;pr<2;pr++)for(unsigned ar=0;ar<2;ar++){
+     unsigned combo=r*4+pr*2+ar;if(combo==0||combo==7)continue;
+     check(equivalent(m[17+combo],hbits(hv(hround(ea*b,pr))+c,ar)),"independent mixed input/product/add rounding");
+    }
     check(equivalent(m[8+r],hbits(fround(a*b+c),r)),"late half fused32");
     check(equivalent(m[10+r],hbits(fround(fround(a*b)+c),r)),"late half split32");
     check(equivalent(m[12+r],hbits(a*b+c,r)),"late half ideal");
@@ -33,6 +39,10 @@ int main(){
   }
  }
  check(fullPrecision>100&&fusedSplit>10,"corpus separates half/full FP32 and fused/split");
+ auto regression=models({hp_research::floatUnits24(0xbfd92c16),0xbc01,0x5800});
+ check(regression[5]==0x4301b2ad&&regression[17]==0x4301b2ac,"v0.11 HP1D vs MIX FP32 one-ULP regression");
+ bool rejected=false;try{modelsUnits(8192*SCALE,SCALE,SCALE);}catch(const std::runtime_error&){rejected=true;}
+ check(rejected,"reject inputs that exceed bounded integer product domain");
  check(equivalent(0,0x80000000u),"zero sign convention");
- std::cout<<"PASS HPO "<<count<<" triples x16 independent models; full32 distinctions="<<fullPrecision<<" fused/split="<<fusedSplit<<"\n";
+ std::cout<<"PASS HPO "<<count<<" triples x24 independent models; full32 distinctions="<<fullPrecision<<" fused/split="<<fusedSplit<<"\n";
 }

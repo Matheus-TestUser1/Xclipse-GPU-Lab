@@ -85,5 +85,6 @@ std::string compute_scan();
 std::string fma_scan();
 std::string hp_scan();
 std::string hp_operand_scan();
+std::string hp_role_scan();
 std::string opencl_compute();
-extern "C" JNIEXPORT jbyteArray JNICALL Java_dev_xclipse_gpulab_Native_scan(JNIEnv* e,jclass,jint mode,jstring name){try{return result(e,mode==1?glscan():mode==2?clscan():mode==3?compute_scan():mode==4?opencl_compute():mode==5?fma_scan():mode==6?hp_scan():mode==7?hp_operand_scan():vulkan(fromjava(e,name)));}catch(const exception& x){return result(e,x.what());}}
+extern "C" JNIEXPORT jbyteArray JNICALL Java_dev_xclipse_gpulab_Native_scan(JNIEnv* e,jclass,jint mode,jstring name){try{return result(e,mode==1?glscan():mode==2?clscan():mode==3?compute_scan():mode==4?opencl_compute():mode==5?fma_scan():mode==6?hp_scan():mode==7?hp_operand_scan():mode==8?hp_role_scan():vulkan(fromjava(e,name)));}catch(const exception& x){return result(e,x.what());}}

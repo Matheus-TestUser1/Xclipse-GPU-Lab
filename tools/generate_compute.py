@@ -126,7 +126,7 @@ with tempfile.TemporaryDirectory() as tmp:
     lines = ['#pragma once', '#include <cstdint>']
     compiler=subprocess.check_output([glslc,'--version'],text=True).strip()
     lines.append('static constexpr const char* fma_compiler_metadata = '+json.dumps(compiler)+';')
-    for i in (0,1,2,3,5,4,6,7,8,9,10,11,12,13,14,*range(15,69)):
+    for i in (0,1,2,3,5,4,6,7,8,9,10,11,12,13,14,*range(15,105)):
         spv = pathlib.Path(tmp) / f'test{i}.spv'
         if i in (6,7,12,13,14):
             assembler, validator = shutil.which('spirv-as'), shutil.which('spirv-val')
@@ -148,8 +148,8 @@ with tempfile.TemporaryDirectory() as tmp:
             text=subprocess.check_output([disassembler,str(spv)],text=True)
             if not re.search(r'OpTypeFloat\s+16',text):
                 raise SystemExit('FMA probe lost its Float16 type')
-            split_control=((i-15)%3==2) if i<24 else ((i-24)%6==4) if i<42 else ((i-42)%9==7)
-            fma_builtin=(i<24 and not split_control) or (24<=i<42 and (i-24)%6 in (2,3,5)) or (i>=42 and (i-42)%9 in (0,1,2,3,6,8))
+            split_control=((i-15)%3==2) if i<24 else ((i-24)%6==4) if i<42 else ((i-42)%9==7) if i<69 else ((i-69)%12%4==3)
+            fma_builtin=(i<24 and not split_control) or (24<=i<42 and (i-24)%6 in (2,3,5)) or (42<=i<69 and (i-42)%9 in (0,1,2,3,6,8)) or (i>=69 and (i-69)%12%4 in (0,2))
             if split_control:
                 if 'NoContraction' not in text or 'OpFMul' not in text or 'OpFAdd' not in text:
                     raise SystemExit('FMA split control lost NoContraction/mul/add')
@@ -159,10 +159,10 @@ with tempfile.TemporaryDirectory() as tmp:
                 half_type=re.search(r'(%\w+)\s*=\s*OpTypeFloat\s+16',text).group(1)
                 if not re.search(r'OpFConvert\s+'+re.escape(half_type)+r'\s',text):
                     raise SystemExit('HP probe lost its FP32-to-FP16 conversion')
-            if ((24<=i<42 and (i-24)%6 in (0,1)) or (i>=42 and (i-42)%9 in (4,5))) and ('OpFMul' not in text or 'OpFAdd' not in text):
+            if ((24<=i<42 and (i-24)%6 in (0,1)) or (42<=i<69 and (i-42)%9 in (4,5)) or (i>=69 and (i-69)%12%4==1)) and ('OpFMul' not in text or 'OpFAdd' not in text):
                 raise SystemExit('HP mul/add reproducer lost arithmetic')
-            mode=(i-15)//3 if i<24 else (i-24)//6 if i<42 else (i-42)//9
-            if i>=42 and (i-42)%9 in (1,5) and 'PushConstant' not in text:
+            mode=(i-15)//3 if i<24 else (i-24)//6 if i<42 else (i-42)//9 if i<69 else (i-69)//12
+            if 42<=i<69 and (i-42)%9 in (1,5) and 'PushConstant' not in text:
                 raise SystemExit('HP uniform-source probe lost push constants')
             if mode:
                 rounding='RoundingModeRTE' if mode==1 else 'RoundingModeRTZ'

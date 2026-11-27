@@ -118,10 +118,10 @@ static void VKAPI_CALL destroyDevice(VkDevice d,const VkAllocationCallbacks* a){
 #include "../app/src/main/cpp/compute.cpp"
 int main(int argc,char** argv){
  if(argc!=3||argv[1][0]!='/' ){
-  std::cerr<<"Usage: radv-direct /absolute/path/vulkan.radeon.so smoke|fma|hp|operands|roles|special|bench|dynamic\n";return 2;
+  std::cerr<<"Usage: radv-direct /absolute/path/vulkan.radeon.so smoke|matrix|fma|hp|operands|roles|special|bench|dynamic\n";return 2;
  }
- const char* suites[]={"smoke","fma","hp","operands","roles","special","bench","dynamic"};
- int mode=-1;for(int i=0;i<8;i++)if(!std::strcmp(argv[2],suites[i]))mode=i;
+ const char* suites[]={"matrix","fma","hp","operands","roles","special","bench","dynamic","smoke"};
+ int mode=-1;for(int i=0;i<9;i++)if(!std::strcmp(argv[2],suites[i]))mode=i;
  if(mode<0)return 2;
  setenv("MESA_SHADER_CACHE_DISABLE","1",1);
  std::cout.setf(std::ios::unitbuf);

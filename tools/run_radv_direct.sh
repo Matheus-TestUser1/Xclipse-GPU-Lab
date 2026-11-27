@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 if [[ $# != 3 ]]; then echo "Usage: bash tools/run_radv_direct.sh <radv-direct> <driver.so> <suite>" >&2; exit 2; fi
-case "$3" in smoke|fma|hp|operands|roles|special|bench|dynamic) ;; *) exit 2;; esac
+case "$3" in smoke|matrix|fma|hp|operands|roles|special|bench|dynamic) ;; *) exit 2;; esac
 dir="/data/local/tmp/xclipse-gpulab-direct"
 out="radv-direct-$3-$(date -u +%Y%m%dT%H%M%SZ)"
 mkdir -p "$out"
@@ -11,6 +11,7 @@ adb push "$1" "$dir/radv-direct"
 adb push "$2" "$dir/vulkan.radeon.so"
 adb shell "chmod 700 $dir/radv-direct"
 adb shell "sha256sum $dir/radv-direct $dir/vulkan.radeon.so" > "$out/device-sha256.txt"
+diff <(awk '{print $1}' "$out/host-sha256.txt") <(awk '{print $1}' "$out/device-sha256.txt")
 adb shell getprop ro.build.fingerprint > "$out/build.txt"
 adb shell uname -a > "$out/kernel.txt"
 adb shell 'cat /sys/kernel/gpu/gpu_info 2>&1' > "$out/gpu-before.txt" || true

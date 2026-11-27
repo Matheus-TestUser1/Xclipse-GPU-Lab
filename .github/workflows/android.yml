@@ -61,6 +61,25 @@ jobs:
           python3 tools/generate_compute.py "$(command -v glslc)" app/src/main/cpp/probe.comp /tmp/gpulab-test/compute_generated.inc
           python3 tools/generate_registry.py "$VULKAN_HEADERS/../registry/vk.xml" /tmp/gpulab-test/registry.inc
           test -s /tmp/gpulab-test/registry.inc
+      - name: Build independent ARM64 RADV probe
+        run: |
+          git init "$RUNNER_TEMP/radv-headers"
+          git -C "$RUNNER_TEMP/radv-headers" remote add origin https://github.com/Matheus-TestUser1/radv-xclipse.git
+          git -C "$RUNNER_TEMP/radv-headers" fetch --depth 1 origin 74bc4665576ed195d64c4e45c50709f5ae4a100b
+          git -C "$RUNNER_TEMP/radv-headers" checkout --detach FETCH_HEAD
+          export MESA_SRC="$RUNNER_TEMP/radv-headers"
+          export ANDROID_NDK_HOME="$ANDROID_SDK_ROOT/ndk/27.2.12479018"
+          bash tools/build_radv_direct.sh "$RUNNER_TEMP/radv-direct"
+          "$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf" -d "$RUNNER_TEMP/radv-direct/radv-direct" | tee "$RUNNER_TEMP/radv-direct/elf-dynamic.txt"
+          if grep -q 'libvulkan.so' "$RUNNER_TEMP/radv-direct/elf-dynamic.txt"; then exit 1; fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Xclipse-GPU-Lab-radv-direct-arm64
+          path: |
+            ${{ runner.temp }}/radv-direct/radv-direct
+            tools/run_radv_direct.sh
+            tools/audit_direct_isa.py
+          if-no-files-found: error
       - run: gradle --no-daemon :app:assembleDebug --stacktrace
       - uses: actions/upload-artifact@v4
         with:

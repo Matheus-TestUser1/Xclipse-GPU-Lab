@@ -16,6 +16,8 @@ int main(){
  assert(!modeSupported(3,true,true,true,true,true,true));
  initializeBench(d.data());
  for(int id=165;id<177;id++){assert(benchKind(id)<3);assert(groups(id)==(id<171?1:32));assert(dependent(id)==(id%2==1));}
+ for(int id=177;id<189;id++){assert(groups(id)==(id<183?1:32));assert(benchKind(id)==0);}
+ assert(d[576]==256&&d[639]==256);
  assert(BUFFER_WORDS==8832);
  auto h=checksum(d.data(),640);d[128]^=1;assert(h!=checksum(d.data(),640));
  std::ostringstream report;specialResults(report,d.data(),129,64);assert(report.str().find("HPE_ROW|63|")!=std::string::npos);

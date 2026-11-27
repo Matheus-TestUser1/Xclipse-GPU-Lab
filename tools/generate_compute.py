@@ -126,7 +126,7 @@ with tempfile.TemporaryDirectory() as tmp:
     lines = ['#pragma once', '#include <cstdint>']
     compiler=subprocess.check_output([glslc,'--version'],text=True).strip()
     lines.append('static constexpr const char* fma_compiler_metadata = '+json.dumps(compiler)+';')
-    for i in (0,1,2,3,5,4,6,7,8,9,10,11,12,13,14,*range(15,105)):
+    for i in (0,1,2,3,5,4,6,7,8,9,10,11,12,13,14,*range(15,129)):
         spv = pathlib.Path(tmp) / f'test{i}.spv'
         if i in (6,7,12,13,14):
             assembler, validator = shutil.which('spirv-as'), shutil.which('spirv-val')
@@ -165,13 +165,18 @@ with tempfile.TemporaryDirectory() as tmp:
             if 42<=i<69 and (i-42)%9 in (1,5) and 'PushConstant' not in text:
                 raise SystemExit('HP uniform-source probe lost push constants')
             if mode:
-                rounding='RoundingModeRTE' if mode==1 else 'RoundingModeRTZ'
+                # HPR modes 3/4 request RTZ32 as a control for the dynamic
+                # s_round_mode changes observed in the proprietary compiler.
+                half_rte=mode in (1,4)
+                round16='RoundingModeRTE' if half_rte else 'RoundingModeRTZ'
+                round32='RoundingModeRTZ' if i>=69 and mode in (3,4) else 'RoundingModeRTE'
                 entry=re.search(r'OpEntryPoint GLCompute (%\w+)',text).group(1)
-                text=text.replace('OpCapability Shader','OpCapability Shader\n               OpCapability '+rounding,1)
-                modes='OpExecutionMode '+entry+' '+rounding+' 16\n               '
-                if i>=24:
-                    text=text.replace('OpCapability Shader','OpCapability Shader\n               OpCapability RoundingModeRTE',1) if mode==2 else text
-                    modes+='OpExecutionMode '+entry+' RoundingModeRTE 32\n               '
+                caps={round16}
+                if i>=24:caps.add(round32)
+                for cap in sorted(caps):
+                    text=text.replace('OpCapability Shader','OpCapability Shader\n               OpCapability '+cap,1)
+                modes='OpExecutionMode '+entry+' '+round16+' 16\n               '
+                if i>=24:modes+='OpExecutionMode '+entry+' '+round32+' 32\n               '
                 text=text.replace('OpExecutionMode '+entry+' LocalSize', modes+'OpExecutionMode '+entry+' LocalSize',1)
             asm=pathlib.Path(tmp)/f'fma{i}.spvasm';asm.write_text(text)
             subprocess.run([assembler,'--target-env','vulkan1.2',str(asm),'-o',str(spv)],check=True)

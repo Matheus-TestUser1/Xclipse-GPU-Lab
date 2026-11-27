@@ -30,7 +30,7 @@ jobs:
       - name: Test capability classification and registry generator
         run: |
           mkdir -p /tmp/gpulab-test
-          javac -d /tmp/gpulab-test app/src/main/java/dev/xclipse/gpulab/{Audit,Kernel,Libraries,Elf,DeepLibraries,Research,ReportBundle,IsaLab,ArchitectureLab,SgpuInspector,FmaLab,HpLab,HpOperandLab,HpComparisons}.java tests/AuditTest.java tests/ResearchTest.java tests/ReportBundleTest.java tests/IsaLabTest.java tests/ArchitectureLabTest.java tests/SgpuInspectorTest.java tests/KernelTest.java tests/FmaLabTest.java tests/HpLabTest.java tests/HpOperandLabTest.java tests/HpComparisonsTest.java
+          javac -d /tmp/gpulab-test app/src/main/java/dev/xclipse/gpulab/{Audit,Kernel,Libraries,Elf,DeepLibraries,Research,ReportBundle,IsaLab,ArchitectureLab,SgpuInspector,FmaLab,HpLab,HpOperandLab,HpComparisons,HpModeLab}.java tests/AuditTest.java tests/ResearchTest.java tests/ReportBundleTest.java tests/IsaLabTest.java tests/ArchitectureLabTest.java tests/SgpuInspectorTest.java tests/KernelTest.java tests/FmaLabTest.java tests/HpLabTest.java tests/HpOperandLabTest.java tests/HpComparisonsTest.java tests/HpModeLabTest.java
           java -cp /tmp/gpulab-test dev.xclipse.gpulab.AuditTest
           java -cp /tmp/gpulab-test dev.xclipse.gpulab.ResearchTest
           java -cp /tmp/gpulab-test dev.xclipse.gpulab.ReportBundleTest
@@ -42,6 +42,7 @@ jobs:
           java -cp /tmp/gpulab-test dev.xclipse.gpulab.HpLabTest
           java -cp /tmp/gpulab-test dev.xclipse.gpulab.HpOperandLabTest
           java -cp /tmp/gpulab-test dev.xclipse.gpulab.HpComparisonsTest
+          java -cp /tmp/gpulab-test dev.xclipse.gpulab.HpModeLabTest
           g++ -std=c++17 -O2 -Wall -Wextra -fsanitize=undefined tests/fma_reference_test.cpp -o /tmp/gpulab-test/fma-reference-test
           /tmp/gpulab-test/fma-reference-test
           g++ -std=c++17 -O2 -Wall -Wextra -fsanitize=undefined tests/hp_reference_test.cpp -o /tmp/gpulab-test/hp-reference-test

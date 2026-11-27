@@ -3,6 +3,13 @@
 
 namespace hp_roles {
 using namespace hp_operands;
+inline bool modeSupported(unsigned mode,bool rte16,bool rtz16,bool rte32,bool rtz32,bool independent){
+ if(mode==0)return true;
+ if(mode>4)return false;
+ bool halfRte=mode==1||mode==4,fullRtz=mode==3||mode==4;
+ return (halfRte?rte16:rtz16)&&(fullRtz?rtz32:rte32)&&((mode!=2&&mode!=4)||independent);
+}
+inline unsigned splitModel(unsigned mode){return 2+(mode==2||mode==3);}
 struct Triple {int64_t a,b,c;};
 inline Triple input(const uint32_t* data,unsigned lane,unsigned position){
  return {position==0?hp_research::floatUnits24(data[128+lane]):units24(uint16_t(data[320+lane])),
@@ -45,7 +52,7 @@ inline void results(std::ostream& o,const uint32_t* data,int shader,unsigned wav
  }
  o<<"HPR_MODELS|phase="<<phase;for(unsigned m=0;m<MODEL_COUNT;m++)o<<"|"<<modelName(m)<<"="<<count[m]<<"/64";o<<"\n";
  o<<"HPR_WAVE|requested="<<wave<<"|shader_reported="<<data[64]<<"|mismatches="<<badWave<<"/64\n";
- if(op==3&&mode)o<<(count[2+(mode==2)]==64?"PASS":"FAIL")<<" HPR strict split phase="<<phase<<"\n";
+ if(op==3&&mode)o<<(count[splitModel(mode)]==64?"PASS":"FAIL")<<" HPR strict split phase="<<phase<<"\n";
  else o<<"OBSERVATION HPR phase="<<phase<<"; shader-level models, FP32 source position is GLSL position and may be reordered in ISA.\n";
  if(badWave)o<<"FAIL HPR subgroup\n";
 }

@@ -15,7 +15,7 @@ final class HpOperandLab {
   String prefix=roles?"HPR":"HPO";
   StringBuilder b=new StringBuilder(roles?"[HP posições FP32 A/B/C: evidências para RADV/ACO]\n":"[HP operandos: evidências para RADV/ACO]\n");
   if(raw.isEmpty())return b.append(roles?"Sem captura. Execute HP posições FP32 / RADV.\n":"Sem captura. Execute HP operandos / RADV.\n").toString();
-  b.append(roles?"108 configurações candidatas: A/B/C × 4 operações × 3 modos × wave padrão/32/64. A posição no GLSL pode mudar na ISA.\n":"81 configurações candidatas: 9 caminhos × 3 modos × wave padrão/32/64. Extensões e modos precisam ser anunciados.\n")
+  b.append(roles?"180 configurações candidatas: A/B/C × 4 operações × 5 modos × wave padrão/32/64. A posição no GLSL pode mudar na ISA.\n":"81 configurações candidatas: 9 caminhos × 3 modos × wave padrão/32/64. Extensões e modos precisam ser anunciados.\n")
    .append(roles?"Fases baseline e perturb_selected_lane0: altera somente a fonte FP32 da lane zero na posição selecionada.\n":"Fases: varying_coefficients varia B/C por lane; uniform push mantém B/C uniformes. matched_sources iguala B/C em todos os caminhos para comparação.\n")
    .append("24 modelos produzem bits FP32: saída half expandida ou resultado FP32 completo, RTE32/RTZ32 e arredondamento misto entre conversão/produto/soma. São hipóteses sobre o shader inteiro; coincidência não prova unicidade.\n")
    .append("SGPR/VGPR abaixo são fontes reconhecidas no texto da ISA; push constants não garantem SGPR. Modificadores podem ser materializados por instruções separadas.\n")
@@ -35,6 +35,7 @@ final class HpOperandLab {
     if(!full){unmodeled++;b.append("OBSERVED_UNMODELED|").append(modelLine.split("\\|",3)[1]).append("|nenhum modelo correspondeu às 64 lanes; não é FAIL de conformidade\n");}
    }
    if(!test)continue;
+   b.append(HpModeLab.analyze(block).describe());
    Set<String> modes=new LinkedHashSet<>();Matcher mode=HpLab.FLOAT_MODE.matcher(block);while(mode.find())modes.add(mode.group(1));
    if(!modes.isEmpty())b.append(prefix+"_FLOAT_MODE|").append(modes).append('\n');
    boolean hp=false,has1d=false,has1e=false;Set<String> isa=new LinkedHashSet<>();

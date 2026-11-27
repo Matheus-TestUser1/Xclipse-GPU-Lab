@@ -4,16 +4,16 @@ import java.util.regex.*;
 
 /** Compares outputs only when GPU, mode, phase, lane and input bits match. */
 final class HpComparisons {
- static final Pattern LABEL=Pattern.compile("^\\[TEST\\] (HPO|HPR) (.*?) (default|RTE16_RTE32|RTZ16_RTE32) wave=(default|32|64) \\|.*$");
+ static final Pattern LABEL=Pattern.compile("^\\[TEST\\] (HPO|HPR) (.*?) (default|RTE16_RTE32|RTZ16_RTE32|RTZ16_RTZ32|RTE16_RTZ32) wave=(default|32|64) \\|.*$");
  static final Pattern WORD=Pattern.compile("//.*?:\\s*(CC[0-9A-Fa-f]{6})(?:\\s|$)");
  static final String[] HPO={"Fma half per-lane lower","Fma half uniform push","Fma half negate A","Fma half abs A negate C","mul-add half per-lane","mul-add half uniform push","Fma promoted half keep FP32","split half NoContraction","Fma half per-lane upper"};
  static final String[] OPS={"Fma half","mul-add half","Fma promoted keep FP32","split half NoContraction"};
  static final class Row {String inputs,phase;long value;Row(String i,String p,long v){inputs=i;phase=p;value=v;}}
  static final class Capture {
-  String gpu,prefix,kind,mode,wave;boolean invalid;Map<String,Row> rows=new LinkedHashMap<>();Set<String> ops=new TreeSet<>();
+  String gpu,prefix,kind,mode,wave;boolean invalid;StringBuilder isa=new StringBuilder();HpModeLab.Profile profile;Map<String,Row> rows=new LinkedHashMap<>();Set<String> ops=new TreeSet<>();
   String key(){return gpu+"|"+prefix+"|"+kind+"|"+mode+"|"+wave;}
  }
- static final class Stats {int tests,compared,different,unmatched,nonfinite;long maxUlp;Set<String> left=new TreeSet<>(),right=new TreeSet<>();}
+ static final class Stats {int tests,compared,different,unmatched,nonfinite,sameModePairs,differentModePairs,unknownModePairs,sameModeCompared,sameModeDifferent;long maxUlp;Set<String> left=new TreeSet<>(),right=new TreeSet<>();}
  static long ordered(long v){return (v&0x80000000L)!=0?(~v)&0xffffffffL:v|0x80000000L;}
  static boolean finite(long v){return (v&0x7f800000L)!=0x7f800000L;}
  static boolean equal(long a,long b){return a==b||((a|b)&0x7fffffffL)==0;}
@@ -29,6 +29,7 @@ final class HpComparisons {
     }
    }
    if(current==null)continue;
+   if(!line.startsWith(current.prefix+"_ROW|"))current.isa.append(line).append('\n');
    if(line.contains("fma")){Matcher word=WORD.matcher(line);if(word.find())current.ops.add("0x"+Long.toHexString((Long.parseLong(word.group(1),16)>>>16)&127));}
    if(!line.startsWith(current.prefix+"_ROW|"))continue;
    try{
@@ -41,6 +42,7 @@ final class HpComparisons {
     if(current.rows.putIfAbsent(p[1]+"|"+lane,new Row(inputs.toString(),p[1],v))!=null)throw new IllegalArgumentException();
    }catch(IllegalArgumentException e){current.invalid=true;malformed++;}
   }
+  for(Capture c:captures.values())c.profile=HpModeLab.analyze(c.isa.toString());
   Map<String,Stats> stats=new LinkedHashMap<>();int missingPartners=0;
   for(Capture c:captures.values()){
    if(c.invalid||c.rows.isEmpty())continue;
@@ -60,9 +62,9 @@ final class HpComparisons {
     if(other==null)missingPartners++;else compare(stats,c.kind.substring(0,6)+"_muladd_vs_promoted_FP32",c,other,false);
    }
   }
-  StringBuilder b=new StringBuilder("\n[Comparações numéricas automáticas]\nMesma GPU, modo, fase, lane e bits de entrada. Diferenças são observações, não falhas de conformidade ou medições de desempenho. OPs abaixo vêm das linhas de FMA na ISA; não identificam sozinhos toda a semântica.\n");
+  StringBuilder b=new StringBuilder("\n[Comparações numéricas automáticas]\nMesma GPU, modo, fase, lane e bits de entrada. Diferenças são observações, não falhas de conformidade ou medições de desempenho. OPs abaixo vêm das linhas de FMA na ISA; não identificam sozinhos toda a semântica. MODE é inferido estaticamente pela referência RDNA para MGFX2, sem leitura de registrador. Pares com MODE diferente/desconhecido não isolam o opcode.\n");
   for(Map.Entry<String,Stats> e:stats.entrySet()){
-   Stats s=e.getValue();b.append("HP_COMPARE|").append(e.getKey()).append("|pairs=").append(s.tests).append("|compared=").append(s.compared).append("|different=").append(s.different).append("|max_ulp=").append(s.maxUlp).append("|unmatched=").append(s.unmatched).append("|nonfinite=").append(s.nonfinite).append("|left_ops=").append(s.left).append("|right_ops=").append(s.right).append('\n');
+   Stats s=e.getValue();b.append("HP_COMPARE|").append(e.getKey()).append("|pairs=").append(s.tests).append("|compared=").append(s.compared).append("|different=").append(s.different).append("|max_ulp=").append(s.maxUlp).append("|unmatched=").append(s.unmatched).append("|nonfinite=").append(s.nonfinite).append("|left_ops=").append(s.left).append("|right_ops=").append(s.right).append("|same_fp_mode_pairs=").append(s.sameModePairs).append("|different_fp_mode_pairs=").append(s.differentModePairs).append("|unknown_fp_mode_pairs=").append(s.unknownModePairs).append("|same_fp_mode_compared=").append(s.sameModeCompared).append("|same_fp_mode_different=").append(s.sameModeDifferent).append('\n');
   }
   if(stats.isEmpty())b.append("Sem pares comparáveis nesta captura.\n");
   return b.append("HP_COMPARE_STATUS|missing_partners=").append(missingPartners).append("|malformed_rows_or_tests=").append(malformed).append('\n').toString();
@@ -71,13 +73,20 @@ final class HpComparisons {
  static void compare(Map<String,Stats> stats,String category,Capture a,Capture b,boolean matchedOnly){
   if(b.invalid||b.rows.isEmpty())return;
   Stats s=stats.computeIfAbsent(category+"|gpu="+a.gpu+"|mode="+a.mode,k->new Stats());s.tests++;s.left.addAll(a.ops);s.right.addAll(b.ops);
+  boolean modeTarget=category.contains("muladd_vs_promoted_FP32"),sameMode=false;
+  if(modeTarget){
+   Integer left=a.profile.singleState("0x1d"),right=b.profile.singleState("0x20");
+   if(left==null||right==null)s.unknownModePairs++;
+   else if(left.equals(right)){s.sameModePairs++;sameMode=true;}
+   else s.differentModePairs++;
+  }
   Set<String> keys=new LinkedHashSet<>(a.rows.keySet());keys.addAll(b.rows.keySet());
   for(String key:keys){
    Row x=a.rows.get(key),y=b.rows.get(key);if(matchedOnly&&!key.startsWith("matched_sources|"))continue;
    if(x==null||y==null||!x.inputs.equals(y.inputs)){s.unmatched++;continue;}
    if(!finite(x.value)||!finite(y.value)){s.nonfinite++;continue;}
-   s.compared++;
-   if(!equal(x.value,y.value)){s.different++;s.maxUlp=Math.max(s.maxUlp,Math.abs(ordered(x.value)-ordered(y.value)));}
+   s.compared++;if(sameMode)s.sameModeCompared++;
+   if(!equal(x.value,y.value)){s.different++;if(sameMode)s.sameModeDifferent++;s.maxUlp=Math.max(s.maxUlp,Math.abs(ordered(x.value)-ordered(y.value)));}
   }
  }
 }

@@ -29,6 +29,14 @@ static void verify(Triple t){
  check(equivalent(m[15],bits(f32(a*b)+c)),"role late FP32 split");
 }
 int main(){
+ check(modeSupported(0,false,false,false,false,false),"default mode requires no override support");
+ check(modeSupported(1,true,false,true,false,false),"same RTE modes need no independence");
+ check(!modeSupported(2,true,true,true,true,false),"mixed RTZ16 RTE32 needs independence");
+ check(modeSupported(3,false,true,false,true,false),"RTZ16 RTZ32 uses only RTZ support");
+ check(!modeSupported(3,true,true,true,false,true),"RTZ32 must be exposed");
+ check(modeSupported(4,true,false,false,true,true)&&!modeSupported(4,true,false,false,true,false),"RTE16 RTZ32 is mixed");
+ check(!modeSupported(5,true,true,true,true,true),"invalid mode");
+ check(splitModel(1)==2&&splitModel(2)==3&&splitModel(3)==3&&splitModel(4)==2,"strict split mode mapping");
  uint32_t data[640]{};hp_roles::initialize(data);unsigned count=0,distinctions[3]{};
  for(unsigned p=0;p<3;p++){
   auto zero=hp_roles::models(hp_roles::input(data,0,p));check(zero[0]==0x39800000&&zero[2]==0,"role cancellation control");

@@ -19,7 +19,7 @@ class HpComparisonsTest {
   String role="[GPU] One\n[TEST] HPR FP32_C mul-add half RTZ16_RTE32 wave=64 | \nHPR_ROW|baseline|0|41802000|41802000|c3804000|4c01|4c01|dc02|39800000\n"+
    "[TEST] HPR FP32_C Fma promoted keep FP32 RTZ16_RTE32 wave=64 | \nHPR_ROW|baseline|0|41802000|41802000|c3804000|4c01|4c01|dc02|39800000\nHPR_MODELS|phase=baseline|early_half_fused_RTE=64/64\n";
   String rs=HpOperandLab.summarize(role,true);
-  if(!rs.contains("108 configurações")||!rs.contains("HPR_COVERAGE")||!rs.contains("FP32_C_muladd_vs_promoted_FP32")||!rs.contains("compared=1|different=0"))throw new AssertionError(rs);
+  if(!rs.contains("180 configurações")||!rs.contains("HPR_COVERAGE")||!rs.contains("FP32_C_muladd_vs_promoted_FP32")||!rs.contains("compared=1|different=0"))throw new AssertionError(rs);
   String unmodeled=HpOperandLab.summarize("[TEST] HPO control default wave=64 | \nHPO_MODELS|phase=baseline|foo=63/64\n");
   if(!unmodeled.contains("OBSERVED_UNMODELED|phase=baseline"))throw new AssertionError(unmodeled);
   System.out.println("PASS HP comparison input matching, FP32 ULP, signed zeros, nonfinite, malformed rows, GPU isolation, role reports");

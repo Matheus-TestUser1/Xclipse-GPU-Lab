@@ -39,7 +39,72 @@ layout(push_constant) uniform Coefficients { uint b; uint c; } coefficients;
 #endif
 void main() {
  uint i=gl_LocalInvocationID.x;
-#if TEST >= 69
+#if TEST >= 165
+ #define BKIND (((TEST-165)%6)/2)
+ #define BDEPEND ((TEST-165)%2==0)
+ #if BKIND == 0
+  #define BT float16_t
+  #define BSEED(k) float16_t(unpackHalf2x16(b.v[320+64*(k)+i]).x)
+  #define BM float16_t(unpackHalf2x16(b.v[192+i]).x)
+  #define BC float16_t(unpackHalf2x16(b.v[256+i]).x)
+  #define BOUT(v) floatBitsToUint(float(v))
+ #elif BKIND == 1
+  #define BT float
+  #define BSEED(k) float(float16_t(unpackHalf2x16(b.v[320+64*(k)+i]).x))
+  #define BM float(float16_t(unpackHalf2x16(b.v[192+i]).x))
+  #define BC float(float16_t(unpackHalf2x16(b.v[256+i]).x))
+  #define BOUT(v) floatBitsToUint(v)
+ #else
+  #define BT f16vec2
+  #define BSEED(k) f16vec2(unpackHalf2x16(b.v[320+64*(k)+i]))
+  #define BM f16vec2(unpackHalf2x16(b.v[192+i]))
+  #define BC f16vec2(unpackHalf2x16(b.v[256+i]))
+  #define BOUT(v) packHalf2x16(vec2(v))
+ #endif
+ BT a0=BSEED(0),a1=BSEED(1),a2=BSEED(2),a3=BSEED(3);
+ BT m=BM,c=BC;
+ for(uint j=0u;j<256u;j++){
+ #if BDEPEND
+  // One recurrence through four FMA instructions; retain all four outputs.
+  a1=fma(a0,m,c);a2=fma(a1,m,c);a3=fma(a2,m,c);a0=fma(a3,m,c);
+ #else
+  a0=fma(a0,m,c);a1=fma(a1,m,c);a2=fma(a2,m,c);a3=fma(a3,m,c);
+ #endif
+ }
+ uint dest=640u+4u*(gl_WorkGroupID.x*64u+i);
+ b.v[dest]=BOUT(a0);b.v[dest+1]=BOUT(a1);b.v[dest+2]=BOUT(a2);b.v[dest+3]=BOUT(a3);
+#elif TEST >= 129
+ #define EPOS (((TEST-129)%12)/4)
+ #define EOP ((TEST-129)%4)
+ #if EPOS == 0
+  float a=uintBitsToFloat(b.v[128+i]);
+ #else
+  float a=unpackHalf2x16(b.v[320+i]).x;
+ #endif
+ #if EPOS == 1
+  float y=uintBitsToFloat(b.v[192+i]);
+ #else
+  float y=unpackHalf2x16(b.v[384+i]).x;
+ #endif
+ #if EPOS == 2
+  float z=uintBitsToFloat(b.v[256+i]);
+ #else
+  float z=unpackHalf2x16(b.v[448+i]).x;
+ #endif
+ float16_t ah=float16_t(a),bh=float16_t(y),ch=float16_t(z);
+ #if EOP == 0
+  b.v[i]=floatBitsToUint(float(fma(ah,bh,ch)));
+ #elif EOP == 1
+  b.v[i]=floatBitsToUint(fma(float(ah),float(bh),float(ch)));
+ #elif EOP == 2
+  vec2 other=unpackHalf2x16(b.v[576+i]);
+  b.v[i]=packHalf2x16(vec2(float(fma(ah,bh,ch)),other.y));
+ #else
+  vec2 other=unpackHalf2x16(b.v[576+i]);
+  b.v[i]=packHalf2x16(vec2(other.x,float(fma(ah,bh,ch))));
+ #endif
+ b.v[64+i]=gl_SubgroupSize;
+#elif TEST >= 69
  #define HPR_KIND ((TEST-69)%12)
  #define HPR_POSITION (HPR_KIND/4)
  #define HPR_OP (HPR_KIND%4)

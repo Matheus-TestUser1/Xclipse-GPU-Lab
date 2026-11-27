@@ -55,6 +55,9 @@ jobs:
           g++ -std=c++17 -O2 -Wall -Wextra -fsanitize=undefined tests/hp_extra_test.cpp -o /tmp/gpulab-test/hp-extra-test
           /tmp/gpulab-test/hp-extra-test
           python3 tools/export_hp_extra.py --self-test
+          python3 tools/audit_direct_isa.py --self-test
+          bash -n tools/build_radv_direct.sh
+          bash -n tools/run_radv_direct.sh
           python3 tools/generate_compute.py "$(command -v glslc)" app/src/main/cpp/probe.comp /tmp/gpulab-test/compute_generated.inc
           python3 tools/generate_registry.py "$VULKAN_HEADERS/../registry/vk.xml" /tmp/gpulab-test/registry.inc
           test -s /tmp/gpulab-test/registry.inc

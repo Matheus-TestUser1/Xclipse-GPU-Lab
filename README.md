@@ -1,4 +1,4 @@
-# Xclipse GPU Lab 0.14 alpha
+# Xclipse GPU Lab 0.15 alpha
 Laboratório Android ARM64 de diagnóstico de GPU. Não contém llama.cpp, modelos de IA, internet, nem treinamento. Projetado para Xclipse 940 / Exynos 2400(e), mas as consultas públicas podem funcionar em outras GPUs.
 
 ## Funcionalidades implementadas no código
@@ -142,3 +142,15 @@ Coleta completa sequencial de nove módulos, com diagnósticos nativos em proces
 - **HP desempenho / RADV**: 12 shaders (3 candidatos de precisão × 2 topologias de dependência × 2 tamanhos de dispatch), até 36 configurações. Cada invocação realiza 256 iterações com quatro chamadas Fma e grava quatro saídas. Uma cadeia dependente ou quatro independentes; 1 ou 32 workgroups de 64. FP16, FP32 promovido e packed FP16 são candidatos de compilação, não seleção garantida de HP/MIX. Um warmup + sete amostras, timestamps GPU quando suportados, wall time separado, checksum e comparação de todas as palavras com warmup. Mediana somente com sete amostras GPU positivas. Não é latência isolada de opcode nem pico teórico; conferir ISA, tamanho de wave, VGPR, loop e condições térmicas.
 - SPIR-V novo obrigatório, validado no build; Fma, Float16, conversões e presença de loop/quatro chamadas são verificados. Exportação offline: tools/export_hp_extra.py transforma capturas HPE em CSV de regressão com bits brutos, classificação da saída, identificação do shader e opcodes observados; exporta HPB separadamente. Nenhum opcode é forçado, nenhuma configuração do sistema ou do RADV é alterada.
 - Validação de host em CI cobre corpus, modos, sentinelas e checksum. Build Android e execução física precisam passar separadamente.
+
+
+## 0.15 — execução independente via HAL RADV (CLI ARM64)
+- Executável separado. O APK continua usando o loader normal; não instala/substitui driver do sistema. O CLI carrega apenas a biblioteca fornecida por dlopen/HMI e resolve funções de instância e dispositivo no HAL. Sem fallback para libvulkan do sistema. Confere VK_DRIVER_ID_MESA_RADV e nome Xclipse 940 antes de executar; registra identidade, firmware, kernel e hashes via runner.
+- No WSL/Linux, configure ANDROID_NDK_HOME e MESA_SRC (checkout do fork radv-xclipse com headers Android), glslc e SPIRV-Tools. Execute:
+    bash tools/build_radv_direct.sh
+    bash tools/run_radv_direct.sh build-radv-direct/radv-direct /path/to/vulkan.radeon.so smoke
+  Depois de validar o smoke, rode individualmente roles, special, bench, dynamic. O runner habilita a opção ALU cooperative matrix do fork; isso não significa WMMA nativa. Guarde report.txt, hashes, exit.txt e contadores. Pare ao primeiro timeout, device loss ou reset; não repita automaticamente.
+- 12 shaders adicionais (A/B/C, FP16 e FP32 promovido, 1/32 workgroups) com limite de iterações lido de SSBO e limitado a 256. Cada iteração converte fonte FP32 dependente do índice e faz quatro chamadas FMA; até 36 configurações com waves default/32/64. Captura ISA, fingerprint SPIR-V, primeira workgroup de resultados, sete timestamps e estabilidade. Candidatos podem não emitir HP; não atribuir a 0x1D/0x1E até conferir ISA. O benchmark contém conversões, atualizações do loop e stores, não mede latência isolada.
+- tools/audit_direct_isa.py gera CSV estático de HP, MIX, packed, WMMA, s_delay_alu, s_singleuse_vdst e mudanças de modo; distingue AMD disassembly de texto KHR. Contagem estática não é execução dinâmica; ausência de texto não é ausência da instrução.
+- Não força opcodes, não faz varredura de códigos desconhecidos, não muda ACO nem promete suporte WMMA. Compare fingerprints e dados por configuração, não só nomes. Próximo passo: patch experimental ACO restrito a instruções e codificações confirmadas, após validar o HAL e as execuções de controle.
+- CI verifica geração SPIR-V e testes de host; build/execução do CLI requer NDK e headers do fork. A execução no dispositivo ainda deve ser confirmada.

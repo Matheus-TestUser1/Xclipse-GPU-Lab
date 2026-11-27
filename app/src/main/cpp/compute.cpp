@@ -1,6 +1,7 @@
 #include <vulkan/vulkan.h>
 #include "compute_generated.inc"
 #include "fma_results.h"
+#include "hp_reference.h"
 #include <vector>
 #include <string>
 #include <sstream>
@@ -18,7 +19,7 @@ struct Run {
 };
 void test(std::ostream& o,VkPhysicalDevice p,uint32_t family,int id,uint32_t wave,bool useExt,bool amdInfo,bool executableInfo,uint32_t timestampBits,float timestampPeriod,uint32_t defaultWave){
  Run r;float pri=1;VkDeviceQueueCreateInfo qi{VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO};qi.queueFamilyIndex=family;qi.queueCount=1;qi.pQueuePriorities=&pri;
- VkPhysicalDeviceVulkan12Features f12{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES};bool fmaTest=id>=15;bool mat=id==4||(id>=12&&id<=14);f12.shaderFloat16=id==2||id==4||id==10||id==12||fmaTest;f12.shaderInt8=id==3||id==6||id==13||id==14;f12.vulkanMemoryModel=mat;
+ VkPhysicalDeviceVulkan12Features f12{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES};bool fmaTest=id>=15&&id<=23;bool hpTest=id>=24;bool mat=id==4||(id>=12&&id<=14);f12.shaderFloat16=id==2||id==4||id==10||id==12||fmaTest||hpTest;f12.shaderInt8=id==3||id==6||id==13||id==14;f12.vulkanMemoryModel=mat;
  VkPhysicalDeviceSubgroupSizeControlFeatures sz{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_FEATURES};sz.subgroupSizeControl=wave!=0;
  VkPhysicalDeviceCooperativeMatrixFeaturesKHR cm{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_FEATURES_KHR};cm.cooperativeMatrix=mat;
  VkPhysicalDevicePipelineExecutablePropertiesFeaturesKHR pe{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PIPELINE_EXECUTABLE_PROPERTIES_FEATURES_KHR};pe.pipelineExecutableInfo=executableInfo;
@@ -36,10 +37,11 @@ void test(std::ostream& o,VkPhysicalDevice p,uint32_t family,int id,uint32_t wav
  VkMemoryAllocateInfo ai{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};ai.allocationSize=req.size;ai.memoryTypeIndex=mt;check(vkAllocateMemory(r.d,&ai,nullptr,&r.mem),"allocate");check(vkBindBufferMemory(r.d,r.b,r.mem,0),"bind");check(vkMapMemory(r.d,r.mem,0,VK_WHOLE_SIZE,0,&r.map),"map");
  auto* data=static_cast<uint32_t*>(r.map);for(unsigned i=0;i<640;i++)data[i]=0xffffffffu;for(unsigned i=0;i<64;i++){data[i]=id==8?0u:0xffffffffu;data[i+64]=1+i%8;}if(id>=12&&id<=14){for(unsigned i=0;i<512;i++)data[i]=0xffffffffu;data[512]=id==12?0x3f800000u:1u;data[513]=id==12?0x40000000u:2u;}
  if(fmaTest)fma_research::initialize(data);
+ if(hpTest)hp_research::initialize(data);
  VkDescriptorSetLayoutBinding lb{};lb.binding=0;lb.descriptorType=VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;lb.descriptorCount=1;lb.stageFlags=VK_SHADER_STAGE_COMPUTE_BIT;VkDescriptorSetLayoutCreateInfo li{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};li.bindingCount=1;li.pBindings=&lb;check(vkCreateDescriptorSetLayout(r.d,&li,nullptr,&r.sl),"descriptor layout");
  VkPipelineLayoutCreateInfo pli{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};pli.setLayoutCount=1;pli.pSetLayouts=&r.sl;check(vkCreatePipelineLayout(r.d,&pli,nullptr,&r.pl),"pipeline layout");
- const uint32_t* code=probe0;size_t bytes=sizeof(probe0);if(id==1){code=probe1;bytes=sizeof(probe1);}if(id==2){code=probe2;bytes=sizeof(probe2);}if(id==3){code=probe3;bytes=sizeof(probe3);}if(id==4){code=probe4;bytes=sizeof(probe4);}if(id==5){code=probe5;bytes=sizeof(probe5);}if(id==6){code=probe6;bytes=sizeof(probe6);}if(id==7){code=probe7;bytes=sizeof(probe7);}if(id==8){code=probe8;bytes=sizeof(probe8);}if(id==9){code=probe9;bytes=sizeof(probe9);}if(id==10){code=probe10;bytes=sizeof(probe10);}if(id==11){code=probe11;bytes=sizeof(probe11);}if(id==12){code=probe12;bytes=sizeof(probe12);}if(id==13){code=probe13;bytes=sizeof(probe13);}if(id==14){code=probe14;bytes=sizeof(probe14);}if(id==15){code=probe15;bytes=sizeof(probe15);}if(id==16){code=probe16;bytes=sizeof(probe16);}if(id==17){code=probe17;bytes=sizeof(probe17);}if(id==18){code=probe18;bytes=sizeof(probe18);}if(id==19){code=probe19;bytes=sizeof(probe19);}if(id==20){code=probe20;bytes=sizeof(probe20);}if(id==21){code=probe21;bytes=sizeof(probe21);}if(id==22){code=probe22;bytes=sizeof(probe22);}if(id==23){code=probe23;bytes=sizeof(probe23);}
- VkShaderModuleCreateInfo si{VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};si.codeSize=bytes;si.pCode=code;if(fmaTest){uint64_t hash=14695981039346656037ull;for(size_t h=0;h<bytes;h++){hash^=reinterpret_cast<const uint8_t*>(code)[h];hash*=1099511628211ull;}o<<"\nSPIRV_FINGERPRINT|fnv1a64="<<std::hex<<hash<<std::dec<<"|bytes="<<bytes<<"\n";}check(vkCreateShaderModule(r.d,&si,nullptr,&r.sm),"shader module");
+ const uint32_t* code=probe0;size_t bytes=sizeof(probe0);if(id==1){code=probe1;bytes=sizeof(probe1);}if(id==2){code=probe2;bytes=sizeof(probe2);}if(id==3){code=probe3;bytes=sizeof(probe3);}if(id==4){code=probe4;bytes=sizeof(probe4);}if(id==5){code=probe5;bytes=sizeof(probe5);}if(id==6){code=probe6;bytes=sizeof(probe6);}if(id==7){code=probe7;bytes=sizeof(probe7);}if(id==8){code=probe8;bytes=sizeof(probe8);}if(id==9){code=probe9;bytes=sizeof(probe9);}if(id==10){code=probe10;bytes=sizeof(probe10);}if(id==11){code=probe11;bytes=sizeof(probe11);}if(id==12){code=probe12;bytes=sizeof(probe12);}if(id==13){code=probe13;bytes=sizeof(probe13);}if(id==14){code=probe14;bytes=sizeof(probe14);}if(id==15){code=probe15;bytes=sizeof(probe15);}if(id==16){code=probe16;bytes=sizeof(probe16);}if(id==17){code=probe17;bytes=sizeof(probe17);}if(id==18){code=probe18;bytes=sizeof(probe18);}if(id==19){code=probe19;bytes=sizeof(probe19);}if(id==20){code=probe20;bytes=sizeof(probe20);}if(id==21){code=probe21;bytes=sizeof(probe21);}if(id==22){code=probe22;bytes=sizeof(probe22);}if(id==23){code=probe23;bytes=sizeof(probe23);}if(id==24){code=probe24;bytes=sizeof(probe24);}if(id==25){code=probe25;bytes=sizeof(probe25);}if(id==26){code=probe26;bytes=sizeof(probe26);}if(id==27){code=probe27;bytes=sizeof(probe27);}if(id==28){code=probe28;bytes=sizeof(probe28);}if(id==29){code=probe29;bytes=sizeof(probe29);}if(id==30){code=probe30;bytes=sizeof(probe30);}if(id==31){code=probe31;bytes=sizeof(probe31);}if(id==32){code=probe32;bytes=sizeof(probe32);}if(id==33){code=probe33;bytes=sizeof(probe33);}if(id==34){code=probe34;bytes=sizeof(probe34);}if(id==35){code=probe35;bytes=sizeof(probe35);}if(id==36){code=probe36;bytes=sizeof(probe36);}if(id==37){code=probe37;bytes=sizeof(probe37);}if(id==38){code=probe38;bytes=sizeof(probe38);}if(id==39){code=probe39;bytes=sizeof(probe39);}if(id==40){code=probe40;bytes=sizeof(probe40);}if(id==41){code=probe41;bytes=sizeof(probe41);}
+ VkShaderModuleCreateInfo si{VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};si.codeSize=bytes;si.pCode=code;if(fmaTest||hpTest){uint64_t hash=14695981039346656037ull;for(size_t h=0;h<bytes;h++){hash^=reinterpret_cast<const uint8_t*>(code)[h];hash*=1099511628211ull;}o<<"\nSPIRV_FINGERPRINT|fnv1a64="<<std::hex<<hash<<std::dec<<"|bytes="<<bytes<<"\n";}check(vkCreateShaderModule(r.d,&si,nullptr,&r.sm),"shader module");
  VkPipelineShaderStageRequiredSubgroupSizeCreateInfo rs{VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_REQUIRED_SUBGROUP_SIZE_CREATE_INFO};rs.requiredSubgroupSize=wave;
  VkComputePipelineCreateInfo pi{VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO};pi.stage.sType=VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;pi.stage.stage=VK_SHADER_STAGE_COMPUTE_BIT;pi.stage.module=r.sm;pi.stage.pName="main";if(wave)pi.stage.pNext=&rs;pi.layout=r.pl;if(executableInfo)pi.flags=VK_PIPELINE_CREATE_CAPTURE_INTERNAL_REPRESENTATIONS_BIT_KHR|VK_PIPELINE_CREATE_CAPTURE_STATISTICS_BIT_KHR;check(vkCreateComputePipelines(r.d,VK_NULL_HANDLE,1,&pi,nullptr,&r.pipe),"compute pipeline");
  if(amdInfo){auto fn=(PFN_vkGetShaderInfoAMD)vkGetDeviceProcAddr(r.d,"vkGetShaderInfoAMD");if(fn){size_t bytes=0;auto res=fn(r.d,r.pipe,VK_SHADER_STAGE_COMPUTE_BIT,VK_SHADER_INFO_TYPE_DISASSEMBLY_AMD,&bytes,nullptr);o<<"\nAMD disassembly query="<<res<<" bytes="<<bytes<<"\n";if(res==VK_SUCCESS&&bytes&&bytes<=262144){std::vector<char> txt(bytes+1);res=fn(r.d,r.pipe,VK_SHADER_STAGE_COMPUTE_BIT,VK_SHADER_INFO_TYPE_DISASSEMBLY_AMD,&bytes,txt.data());if(res==VK_SUCCESS)o<<"[AMD driver disassembly]\n"<<txt.data()<<"\n";}VkShaderStatisticsInfoAMD st{};bytes=sizeof(st);if(fn(r.d,r.pipe,VK_SHADER_STAGE_COMPUTE_BIT,VK_SHADER_INFO_TYPE_STATISTICS_AMD,&bytes,&st)==VK_SUCCESS)o<<"AMD statistics VGPR="<<st.resourceUsage.numUsedVgprs<<" SGPR="<<st.resourceUsage.numUsedSgprs<<" LDS bytes="<<st.resourceUsage.ldsUsageSizeInBytes<<"\n";}}
@@ -49,12 +51,28 @@ void test(std::ostream& o,VkPhysicalDevice p,uint32_t family,int id,uint32_t wav
  VkDescriptorBufferInfo db{r.b,0,VK_WHOLE_SIZE};VkWriteDescriptorSet wr{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};wr.dstSet=set;wr.dstBinding=0;wr.descriptorCount=1;wr.descriptorType=VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;wr.pBufferInfo=&db;vkUpdateDescriptorSets(r.d,1,&wr,0,nullptr);
  VkCommandPoolCreateInfo cpi{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};cpi.queueFamilyIndex=family;check(vkCreateCommandPool(r.d,&cpi,nullptr,&r.cp),"command pool");VkCommandBufferAllocateInfo ca{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};ca.commandPool=r.cp;ca.level=VK_COMMAND_BUFFER_LEVEL_PRIMARY;ca.commandBufferCount=1;VkCommandBuffer cmd;check(vkAllocateCommandBuffers(r.d,&ca,&cmd),"command buffer");
  if(timestampBits){VkQueryPoolCreateInfo qp{VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO};qp.queryType=VK_QUERY_TYPE_TIMESTAMP;qp.queryCount=2;if(vkCreateQueryPool(r.d,&qp,nullptr,&r.timestamps)!=VK_SUCCESS)r.timestamps=VK_NULL_HANDLE;}
- VkCommandBufferBeginInfo cb{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};cb.flags=fmaTest?0:VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;check(vkBeginCommandBuffer(cmd,&cb),"begin");
+ VkCommandBufferBeginInfo cb{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};cb.flags=(fmaTest||hpTest)?0:VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;check(vkBeginCommandBuffer(cmd,&cb),"begin");
  if(r.timestamps){vkCmdResetQueryPool(cmd,r.timestamps,0,2);vkCmdWriteTimestamp(cmd,VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,r.timestamps,0);}
  VkMemoryBarrier before{VK_STRUCTURE_TYPE_MEMORY_BARRIER};before.srcAccessMask=VK_ACCESS_HOST_WRITE_BIT;before.dstAccessMask=VK_ACCESS_SHADER_READ_BIT|VK_ACCESS_SHADER_WRITE_BIT;vkCmdPipelineBarrier(cmd,VK_PIPELINE_STAGE_HOST_BIT,VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,0,1,&before,0,nullptr,0,nullptr);
  vkCmdBindPipeline(cmd,VK_PIPELINE_BIND_POINT_COMPUTE,r.pipe);vkCmdBindDescriptorSets(cmd,VK_PIPELINE_BIND_POINT_COMPUTE,r.pl,0,1,&set,0,nullptr);vkCmdDispatch(cmd,1,1,1);if(r.timestamps)vkCmdWriteTimestamp(cmd,VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,r.timestamps,1);
  VkMemoryBarrier after{VK_STRUCTURE_TYPE_MEMORY_BARRIER};after.srcAccessMask=VK_ACCESS_SHADER_WRITE_BIT;after.dstAccessMask=VK_ACCESS_HOST_READ_BIT;vkCmdPipelineBarrier(cmd,VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,VK_PIPELINE_STAGE_HOST_BIT,0,1,&after,0,nullptr,0,nullptr);check(vkEndCommandBuffer(cmd),"end");
  VkFenceCreateInfo fi{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};check(vkCreateFence(r.d,&fi,nullptr,&r.fence),"fence");VkSubmitInfo sub{VK_STRUCTURE_TYPE_SUBMIT_INFO};sub.commandBufferCount=1;sub.pCommandBuffers=&cmd;auto start=std::chrono::steady_clock::now();check(vkQueueSubmit(q,1,&sub,r.fence),"submit");VkResult wait=vkWaitForFences(r.d,1,&r.fence,VK_TRUE,5000000000ull);if(wait==VK_TIMEOUT)std::_Exit(124);check(wait,"fence wait");double ms=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-start).count();
+ if(hpTest){
+  o<<"HP_ROWS|phase|lane|source_f32_bits|source_uint|gpu_f32_bits";
+  for(unsigned m=0;m<hp_research::MODEL_COUNT;m++)o<<"|"<<hp_research::modelName(m)<<"_f16";
+  o<<" (hex values; constant operands B=1.5, C=0.5)\n";
+  hp_research::results(o,data,id,wave,"baseline");
+  uint32_t original[64];std::copy(data,data+64,original);
+  if((id-24)%6==0)data[192]=2049;else data[128]=0x3f801001;
+  for(unsigned i=0;i<128;i++)data[i]=0xffffffffu;
+  check(vkResetFences(r.d,1,&r.fence),"reset HP fence");check(vkQueueSubmit(q,1,&sub,r.fence),"HP perturb submit");
+  VkResult second=vkWaitForFences(r.d,1,&r.fence,VK_TRUE,5000000000ull);if(second==VK_TIMEOUT)std::_Exit(124);check(second,"HP perturb wait");
+  hp_research::results(o,data,id,wave,"perturb_lane0_source");
+  unsigned changed=0;for(unsigned i=1;i<64;i++)if(data[i]!=original[i])changed++;
+  o<<(changed?"FAIL":"PASS")<<" HP lane independence changed_other_lanes="<<changed<<"/63\n";
+  o<<"HP_LIMIT: compiler-selected instructions; hp emission must be confirmed in this shader's ISA before attributing observations to hp. Not a matrix or performance test.\n";
+  return;
+ }
  if(fmaTest){
   o<<"FMA_ROWS|phase|element|a_f16|b_f16|c_f16|gpu_f16|fused_RTE|fused_RTZ|split_RTE|split_RTZ (hex)\n";
   fma_research::results(o,data,id,wave,"baseline");
@@ -79,8 +97,8 @@ void test(std::ostream& o,VkPhysicalDevice p,uint32_t family,int id,uint32_t wav
  o<<(mismatch?"FAIL":"PASS")<<" mismatch="<<mismatch<<"/"<<checked<<" first=0x"<<std::hex<<data[0]<<std::dec<<" submit_to_fence_ms="<<ms<<"\n";if(r.timestamps){uint64_t t[2]{};auto qr=vkGetQueryPoolResults(r.d,r.timestamps,0,2,sizeof(t),t,sizeof(uint64_t),VK_QUERY_RESULT_64_BIT);if(qr==VK_SUCCESS){uint64_t mask=timestampBits>=64?~0ull:((1ull<<timestampBits)-1);o<<"GPU timestamp delta_ns="<<double((t[1]-t[0])&mask)*timestampPeriod<<"\n";}else o<<"GPU timestamp unavailable: "<<qr<<"\n";}
 }
 }
-static std::string compute_scan_impl(bool fmaOnly){
- std::ostringstream o;o<<(fmaOnly?"[MGFX2 FMA semantics research / RADV]\n":"[Functional Vulkan compute tests / known answers]\n");
+static std::string compute_scan_impl(int researchMode){
+ bool fmaOnly=researchMode==1,hpOnly=researchMode==2;std::ostringstream o;o<<(hpOnly?"[HP FP32-to-FP16 semantics research / RADV]\n":fmaOnly?"[MGFX2 FMA semantics research / RADV]\n":"[Functional Vulkan compute tests / known answers]\n");
  try{uint32_t api=VK_API_VERSION_1_0;auto ev=(PFN_vkEnumerateInstanceVersion)vkGetInstanceProcAddr(nullptr,"vkEnumerateInstanceVersion");if(ev)check(ev(&api),"instance version");if(api<VK_API_VERSION_1_2)return "INCONCLUSIVE: loader Vulkan <1.2";VkApplicationInfo app{VK_STRUCTURE_TYPE_APPLICATION_INFO};app.pApplicationName="GPU Lab compute";app.apiVersion=std::min(api,(uint32_t)VK_API_VERSION_1_3);VkInstanceCreateInfo ii{VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};ii.pApplicationInfo=&app;Instance ins;check(vkCreateInstance(&ii,nullptr,&ins.i),"instance");uint32_t n=0;check(vkEnumeratePhysicalDevices(ins.i,&n,nullptr),"enumerate");std::vector<VkPhysicalDevice> ds(n);check(vkEnumeratePhysicalDevices(ins.i,&n,ds.data()),"devices");
  for(auto p:ds){VkPhysicalDeviceProperties prop{};vkGetPhysicalDeviceProperties(p,&prop);o<<"\n[GPU] "<<prop.deviceName<<"\n";uint32_t ver=std::min(api,prop.apiVersion);if(ver<VK_API_VERSION_1_2||prop.limits.maxComputeWorkGroupInvocations<64||prop.limits.maxComputeWorkGroupSize[0]<64){o<<"SKIP: API/workgroup limit\n";continue;}
  uint32_t k=0;vkGetPhysicalDeviceQueueFamilyProperties(p,&k,nullptr);std::vector<VkQueueFamilyProperties> qs(k);vkGetPhysicalDeviceQueueFamilyProperties(p,&k,qs.data());auto qi=std::find_if(qs.begin(),qs.end(),[](auto x){return x.queueCount&&(x.queueFlags&VK_QUEUE_COMPUTE_BIT);});if(qi==qs.end()){o<<"SKIP no compute queue\n";continue;}uint32_t family=qi-qs.begin();
@@ -91,6 +109,22 @@ static std::string compute_scan_impl(bool fmaOnly){
  VkPhysicalDeviceProperties2 fcp{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};fcp.pNext=&fc;vkGetPhysicalDeviceProperties2(p,&fcp);
  bool sub=(sg.supportedStages&VK_SHADER_STAGE_COMPUTE_BIT)&&(sg.supportedOperations&VK_SUBGROUP_FEATURE_BASIC_BIT)&&(sg.supportedOperations&VK_SUBGROUP_FEATURE_ARITHMETIC_BIT);
  auto run=[&](const char* label,int id,bool supported,uint32_t wave=0){o<<"\n[TEST] "<<label<<" | ";if(!supported){o<<"SKIP active driver did not expose required feature (hardware capability undetermined)\n";return;}try{test(o,p,family,id,wave,ver<VK_API_VERSION_1_3,amd,exec&&pe.pipelineExecutableInfo,qi->timestampValidBits,prop.limits.timestampPeriod,sg.subgroupSize);}catch(const std::exception& e){o<<"INCONCLUSIVE "<<e.what()<<"\n";}};
+ if(hpOnly){
+  o<<"HP_BUILD|"<<fma_compiler_metadata<<"\n";
+  o<<"HP_FEATURES|Float16="<<f12.shaderFloat16<<"|RTE16="<<fc.shaderRoundingModeRTEFloat16<<"|RTZ16="<<fc.shaderRoundingModeRTZFloat16<<"|RTE32="<<fc.shaderRoundingModeRTEFloat32<<"|rounding_independence="<<fc.roundingModeIndependence<<"\n";
+  o<<"Corpus: uint inputs including 1..8 and half boundaries; FP32 inputs near half ties, positive/negative. Constants B=1.5 C=0.5, including the buffer-operand path. No NaN/Inf/subnormal result claims.\n";
+  o<<"Explicit modes request RTE32 plus RTE16 or RTZ16. Default-mode numerical models assume RTE32 and are observational only.\n";
+  const char* kinds[]={"uint-to-half mul-add constants","FP32-to-half mul-add constants","FP32-to-half Fma constants","FP32 Fma then half","FP32-to-half split NoContraction","FP32-to-half Fma buffer operands"};
+  const char* modes[]={"default","RTE16_RTE32","RTZ16_RTE32"};
+  for(uint32_t requested:{0u,32u,64u})for(int mode=0;mode<3;mode++)for(int kind=0;kind<6;kind++){
+   bool w=!requested||(sizeAvailable&&sz.subgroupSizeControl&&(sp.requiredSubgroupSizeStages&VK_SHADER_STAGE_COMPUTE_BIT)&&requested>=sp.minSubgroupSize&&requested<=sp.maxSubgroupSize&&64/requested<=sp.maxComputeWorkgroupSubgroups);
+   bool rounding=mode==0||(fc.shaderRoundingModeRTEFloat32&&(mode==1?fc.shaderRoundingModeRTEFloat16:(fc.shaderRoundingModeRTZFloat16&&fc.roundingModeIndependence!=VK_SHADER_FLOAT_CONTROLS_INDEPENDENCE_NONE)));
+   bool basic=(sg.supportedStages&VK_SHADER_STAGE_COMPUTE_BIT)&&(sg.supportedOperations&VK_SUBGROUP_FEATURE_BASIC_BIT);
+   std::string label=std::string("HP ")+kinds[kind]+" "+modes[mode]+" wave="+(requested?std::to_string(requested):"default");
+   run(label.c_str(),24+mode*6+kind,basic&&f12.shaderFloat16&&rounding&&w&&(requested||sg.subgroupSize==32||sg.subgroupSize==64),requested);
+  }
+  continue;
+ }
  if(fmaOnly){
   o<<"FMA_BUILD|"<<fma_compiler_metadata<<"\n";
   o<<"FMA_FEATURES|shaderFloat16="<<f12.shaderFloat16<<"|RTE16="<<fc.shaderRoundingModeRTEFloat16<<"|RTZ16="<<fc.shaderRoundingModeRTZFloat16<<"|default_subgroup="<<sg.subgroupSize<<"|rounding_independence="<<fc.roundingModeIndependence<<"\n";
@@ -127,8 +161,9 @@ static std::string compute_scan_impl(bool fmaOnly){
  if(sg.subgroupSize==32||sg.subgroupSize==64){runMatrix(12,"SPIR-V matrix FP16/FP32 default",has_probe12,shape&&f12.shaderFloat16,0);runMatrix(13,"SPIR-V matrix SINT8/I32 default",has_probe13,signedShape&&f12.shaderInt8,0);runMatrix(14,"SPIR-V matrix UINT8/U32 default",has_probe14,unsignedShape&&f12.shaderInt8,0);}
  }
  }catch(const std::exception& e){o<<"INCONCLUSIVE "<<e.what()<<"\n";}
- o<<(fmaOnly?"FMA research complete. Correlate shader-level observations with emitted ISA; no WMMA conclusion.\n":"PASS validates shader results via active driver. ALU/subgroup matrix is a portable fallback, not native WMMA; a skipped feature is not evidence of absent silicon. Timeout terminates probe process without modifying system settings.\n");return o.str();
+ o<<(hpOnly?"HP research complete. Check per-shader hp emission before interpreting numeric observations.\n":fmaOnly?"FMA research complete. Correlate shader-level observations with emitted ISA; no WMMA conclusion.\n":"PASS validates shader results via active driver. ALU/subgroup matrix is a portable fallback, not native WMMA; a skipped feature is not evidence of absent silicon. Timeout terminates probe process without modifying system settings.\n");return o.str();
 }
 
-std::string compute_scan(){return compute_scan_impl(false);}
-std::string fma_scan(){return compute_scan_impl(true);}
+std::string compute_scan(){return compute_scan_impl(0);}
+std::string fma_scan(){return compute_scan_impl(1);}
+std::string hp_scan(){return compute_scan_impl(2);}

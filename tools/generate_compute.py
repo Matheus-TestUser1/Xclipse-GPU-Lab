@@ -126,7 +126,7 @@ with tempfile.TemporaryDirectory() as tmp:
     lines = ['#pragma once', '#include <cstdint>']
     compiler=subprocess.check_output([glslc,'--version'],text=True).strip()
     lines.append('static constexpr const char* fma_compiler_metadata = '+json.dumps(compiler)+';')
-    for i in (0,1,2,3,5,4,6,7,8,9,10,11,12,13,14,*range(15,24)):
+    for i in (0,1,2,3,5,4,6,7,8,9,10,11,12,13,14,*range(15,42)):
         spv = pathlib.Path(tmp) / f'test{i}.spv'
         if i in (6,7,12,13,14):
             assembler, validator = shutil.which('spirv-as'), shutil.which('spirv-val')
@@ -148,17 +148,29 @@ with tempfile.TemporaryDirectory() as tmp:
             text=subprocess.check_output([disassembler,str(spv)],text=True)
             if not re.search(r'OpTypeFloat\s+16',text):
                 raise SystemExit('FMA probe lost its Float16 type')
-            if (i-15)%3==2:
+            split_control=((i-15)%3==2) if i<24 else ((i-24)%6==4)
+            fma_builtin=(i<24 and not split_control) or (i>=24 and (i-24)%6 in (2,3,5))
+            if split_control:
                 if 'NoContraction' not in text or 'OpFMul' not in text or 'OpFAdd' not in text:
                     raise SystemExit('FMA split control lost NoContraction/mul/add')
-            elif not re.search(r'OpExtInst .* Fma ',text):
+            elif fma_builtin and not re.search(r'OpExtInst .* Fma ',text):
                 raise SystemExit('FMA probe lost GLSL.std.450 Fma')
-            mode=(i-15)//3
+            if i>=24:
+                half_type=re.search(r'(%\w+)\s*=\s*OpTypeFloat\s+16',text).group(1)
+                if not re.search(r'OpFConvert\s+'+re.escape(half_type)+r'\s',text):
+                    raise SystemExit('HP probe lost its FP32-to-FP16 conversion')
+            if i>=24 and (i-24)%6 in (0,1) and ('OpFMul' not in text or 'OpFAdd' not in text):
+                raise SystemExit('HP mul/add reproducer lost arithmetic')
+            mode=(i-15)//3 if i<24 else (i-24)//6
             if mode:
                 rounding='RoundingModeRTE' if mode==1 else 'RoundingModeRTZ'
                 entry=re.search(r'OpEntryPoint GLCompute (%\w+)',text).group(1)
                 text=text.replace('OpCapability Shader','OpCapability Shader\n               OpCapability '+rounding,1)
-                text=text.replace('OpExecutionMode '+entry+' LocalSize', 'OpExecutionMode '+entry+' '+rounding+' 16\n               OpExecutionMode '+entry+' LocalSize',1)
+                modes='OpExecutionMode '+entry+' '+rounding+' 16\n               '
+                if i>=24:
+                    text=text.replace('OpCapability Shader','OpCapability Shader\n               OpCapability RoundingModeRTE',1) if mode==2 else text
+                    modes+='OpExecutionMode '+entry+' RoundingModeRTE 32\n               '
+                text=text.replace('OpExecutionMode '+entry+' LocalSize', modes+'OpExecutionMode '+entry+' LocalSize',1)
             asm=pathlib.Path(tmp)/f'fma{i}.spvasm';asm.write_text(text)
             subprocess.run([assembler,'--target-env','vulkan1.2',str(asm),'-o',str(spv)],check=True)
             subprocess.run([validator,'--target-env','vulkan1.2',str(spv)],check=True)

@@ -1,4 +1,4 @@
-# Xclipse GPU Lab 0.9 alpha
+# Xclipse GPU Lab 0.10 alpha
 Laboratório Android ARM64 de diagnóstico de GPU. Não contém llama.cpp, modelos de IA, internet, nem treinamento. Projetado para Xclipse 940 / Exynos 2400(e), mas as consultas públicas podem funcionar em outras GPUs.
 
 ## Funcionalidades implementadas no código
@@ -92,3 +92,14 @@ Coleta completa sequencial de nove módulos, com diagnósticos nativos em proces
 - Build exige glslc, spirv-dis, spirv-as e spirv-val. Os nove shaders novos são obrigatórios e validados no build, incluindo presença de Float16, Fma e NoContraction nos caminhos aplicáveis; falha neles interrompe a compilação em vez de entregar uma bateria vazia.
 - Testes locais: oito suítes Java; referência C++ comparada com conversões de precisão do host para o corpus, empates/cancelamento e round-trip de 24.576 representações half; UBSan sem erro. Shaders novos gerados/validados com shaderc 2023.2 e SPIRV-Tools 2023.1; sintaxe C++ com headers Vulkan v1.4.321. Build Android e execução no S24 FE são verificações separadas.
 - Referências: https://www.amd.com/content/dam/amd/en/documents/radeon-tech-docs/instruction-set-architectures/rdna3-shader-instruction-set-architecture-feb-2023_0.pdf ; https://github.khronos.org/SPIRV-Registry/extensions/KHR/SPV_KHR_float_controls.html ; https://docs.vulkan.org/refpages/latest/refpages/source/VK_KHR_shader_fma.html .
+
+
+## 0.10 — reprodutores HP FP32→FP16 para RADV/ACO
+- Novo módulo em Arquitetura: **HP FP32→FP16 / RADV** e **Evidências HP / ACO**. Coleta completa inclui os dois e passa a 21 relatórios. A bateria FMA v0.9 permanece independente.
+- Seis caminhos: UINT→FP32→FP16 com mul/add constantes (reprodutor do teste antigo); FP32→FP16 com mul/add constantes; FP32→FP16 com Fma constante; Fma em FP32 com conversão final para FP16; controle FP32→FP16 com mul/add NoContraction; e Fma FP16 com multiplicador/acumulador vindos de buffers. B=1.5 e C=0.5 nos caminhos constantes e de buffer, para comparar compilação com os mesmos valores.
+- Dezoito shaders obrigatórios (seis caminhos × padrão/RTE16_RTE32/RTZ16_RTE32), tentados em subgroup padrão/32/64: até 54 configurações. RTE32 e modo FP16 só são solicitados quando anunciados; RTZ16+RTE32 é pulado se a independência de arredondamento for NONE.
+- Corpus de 64 entradas por caminho: inteiros incluindo 1..8 e fronteiras de precisão half; valores FP32 positivos e negativos próximos a empates de conversão. Resultado exportado como bits FP32 da expansão do FP16, reproduzindo a forma de saída antiga. Cada pipeline é repetido alterando somente a entrada usada pela lane 0 e comparando as demais 63 lanes.
+- Oráculo inteiro para domínio limitado: comparação com dez modelos — conversão inicial e FMA fundida/separada RTE/RTZ, conversão final após FMA FP32 RTE ou mul/add FP32 RTE, e arredondamento final ideal sem intermediário FP32. Modelos podem coincidir; não são prova de semântica única. O modo padrão compara modelos que assumem RTE32, de forma observacional. Controle split com arredondamento explícito é verificado separadamente.
+- O resumo informa `hp_emitted` por teste, instruções de conversão/FMA, campos VOP3P quando reconhecidos, `FloatMode` e modos escalares explícitos. Sem emissão da variante `hp` na ISA do próprio teste, a captura não é classificada como validação de HP. Os reprodutores antigos são mostrados apenas como contexto separado.
+- Sem opcode injetado ou recurso não anunciado forçado. Não é teste matricial coletivo, não caracteriza NaN/Inf/denormais e não é benchmark. A captura descreve o shader inteiro, ainda que nele haja uma instrução hp.
+- Validação: nove suítes Java; testes C++ dos oráculos FMA e HP com UBSan, incluindo dez modelos HP comparados com operações/conversões independentes do host. O corpus atual distingue conversão inicial/final em 27 casos de referência e arredondamento em 52. Os dezoito shaders novos foram compilados e validados por SPIRV-Tools, incluindo presença de conversão FP32→FP16 e dos controles apropriados; sintaxe C++ verificada com os headers Vulkan fixados. A execução na Xclipse 940 e quais caminhos emitem hp dependem da próxima captura no aparelho.

@@ -1,4 +1,4 @@
-import sys, subprocess, struct, pathlib, tempfile, shutil
+import sys, subprocess, struct, pathlib, tempfile, shutil, re, json
 
 def dot_asm(bits):
     return f"""OpCapability Shader
@@ -124,7 +124,9 @@ OpFunctionEnd
 glslc, src, out = sys.argv[1:]
 with tempfile.TemporaryDirectory() as tmp:
     lines = ['#pragma once', '#include <cstdint>']
-    for i in (0,1,2,3,5,4,6,7,8,9,10,11,12,13,14):
+    compiler=subprocess.check_output([glslc,'--version'],text=True).strip()
+    lines.append('static constexpr const char* fma_compiler_metadata = '+json.dumps(compiler)+';')
+    for i in (0,1,2,3,5,4,6,7,8,9,10,11,12,13,14,*range(15,129)):
         spv = pathlib.Path(tmp) / f'test{i}.spv'
         if i in (6,7,12,13,14):
             assembler, validator = shutil.which('spirv-as'), shutil.which('spirv-val')
@@ -137,7 +139,51 @@ with tempfile.TemporaryDirectory() as tmp:
                 ok=subprocess.run([validator,'--target-env','vulkan1.2',str(spv)]).returncode==0
         else:
             ok=subprocess.run([glslc, '--target-env=vulkan1.2', f'-DTEST={i}', '-fshader-stage=compute', src, '-o', str(spv)]).returncode==0
+        if ok and i>=15:
+            # Require real F16 arithmetic, validate every new shader, and retain a
+            # byte-for-byte fingerprint of the SPIR-V that will reach the driver.
+            disassembler, assembler, validator = (shutil.which(x) for x in ('spirv-dis','spirv-as','spirv-val'))
+            if not all((disassembler,assembler,validator)):
+                raise SystemExit('FMA research requires spirv-dis, spirv-as and spirv-val')
+            text=subprocess.check_output([disassembler,str(spv)],text=True)
+            if not re.search(r'OpTypeFloat\s+16',text):
+                raise SystemExit('FMA probe lost its Float16 type')
+            split_control=((i-15)%3==2) if i<24 else ((i-24)%6==4) if i<42 else ((i-42)%9==7) if i<69 else ((i-69)%12%4==3)
+            fma_builtin=(i<24 and not split_control) or (24<=i<42 and (i-24)%6 in (2,3,5)) or (42<=i<69 and (i-42)%9 in (0,1,2,3,6,8)) or (i>=69 and (i-69)%12%4 in (0,2))
+            if split_control:
+                if 'NoContraction' not in text or 'OpFMul' not in text or 'OpFAdd' not in text:
+                    raise SystemExit('FMA split control lost NoContraction/mul/add')
+            elif fma_builtin and not re.search(r'OpExtInst .* Fma ',text):
+                raise SystemExit('FMA probe lost GLSL.std.450 Fma')
+            if i>=24:
+                half_type=re.search(r'(%\w+)\s*=\s*OpTypeFloat\s+16',text).group(1)
+                if not re.search(r'OpFConvert\s+'+re.escape(half_type)+r'\s',text):
+                    raise SystemExit('HP probe lost its FP32-to-FP16 conversion')
+            if ((24<=i<42 and (i-24)%6 in (0,1)) or (42<=i<69 and (i-42)%9 in (4,5)) or (i>=69 and (i-69)%12%4==1)) and ('OpFMul' not in text or 'OpFAdd' not in text):
+                raise SystemExit('HP mul/add reproducer lost arithmetic')
+            mode=(i-15)//3 if i<24 else (i-24)//6 if i<42 else (i-42)//9 if i<69 else (i-69)//12
+            if 42<=i<69 and (i-42)%9 in (1,5) and 'PushConstant' not in text:
+                raise SystemExit('HP uniform-source probe lost push constants')
+            if mode:
+                # HPR modes 3/4 request RTZ32 as a control for the dynamic
+                # s_round_mode changes observed in the proprietary compiler.
+                half_rte=mode in (1,4)
+                round16='RoundingModeRTE' if half_rte else 'RoundingModeRTZ'
+                round32='RoundingModeRTZ' if i>=69 and mode in (3,4) else 'RoundingModeRTE'
+                entry=re.search(r'OpEntryPoint GLCompute (%\w+)',text).group(1)
+                caps={round16}
+                if i>=24:caps.add(round32)
+                for cap in sorted(caps):
+                    text=text.replace('OpCapability Shader','OpCapability Shader\n               OpCapability '+cap,1)
+                modes='OpExecutionMode '+entry+' '+round16+' 16\n               '
+                if i>=24:modes+='OpExecutionMode '+entry+' '+round32+' 32\n               '
+                text=text.replace('OpExecutionMode '+entry+' LocalSize', modes+'OpExecutionMode '+entry+' LocalSize',1)
+            asm=pathlib.Path(tmp)/f'fma{i}.spvasm';asm.write_text(text)
+            subprocess.run([assembler,'--target-env','vulkan1.2',str(asm),'-o',str(spv)],check=True)
+            subprocess.run([validator,'--target-env','vulkan1.2',str(spv)],check=True)
         if not ok:
+            if i>=15:
+                raise SystemExit(f'Required FMA research shader {i} failed to compile')
             if i not in (4,6,7,8,9,10,11,12,13,14):
                 raise SystemExit(1)
             print(f'Optional shader {i} unavailable at build time')

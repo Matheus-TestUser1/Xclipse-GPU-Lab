@@ -1,5 +1,8 @@
 #version 450
-#if TEST == 1
+#if TEST >= 15
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
+#extension GL_KHR_shader_subgroup_basic : require
+#elif TEST == 1
 #extension GL_KHR_shader_subgroup_basic : require
 #extension GL_KHR_shader_subgroup_arithmetic : require
 #elif TEST == 9
@@ -9,6 +12,7 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
 #elif TEST == 11
 #extension GL_KHR_shader_subgroup_basic : require
+#extension GL_KHR_shader_subgroup_ballot : require
 #elif TEST == 2
 #extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
 #elif TEST == 3
@@ -30,9 +34,124 @@ layout(set=0,binding=0,std430) buffer B { uint v[]; } b;
 #if TEST == 5
 shared uint scratch[64];
 #endif
+#if TEST >= 42 && TEST < 69 && (((TEST-42)%9)==1 || ((TEST-42)%9)==5)
+layout(push_constant) uniform Coefficients { uint b; uint c; } coefficients;
+#endif
 void main() {
  uint i=gl_LocalInvocationID.x;
-#if TEST == 1
+#if TEST >= 69
+ #define HPR_KIND ((TEST-69)%12)
+ #define HPR_POSITION (HPR_KIND/4)
+ #define HPR_OP (HPR_KIND%4)
+ #if HPR_POSITION == 0
+ float a=uintBitsToFloat(b.v[128+i]);
+ #else
+ float a=unpackHalf2x16(b.v[320+i]).x;
+ #endif
+ #if HPR_POSITION == 1
+ float y=uintBitsToFloat(b.v[192+i]);
+ #else
+ float y=unpackHalf2x16(b.v[384+i]).x;
+ #endif
+ #if HPR_POSITION == 2
+ float z=uintBitsToFloat(b.v[256+i]);
+ #else
+ float z=unpackHalf2x16(b.v[448+i]).x;
+ #endif
+ float16_t ah=float16_t(a),bh=float16_t(y),ch=float16_t(z);
+ float result;
+ #if HPR_OP == 0
+ result=float(fma(ah,bh,ch));
+ #elif HPR_OP == 1
+ result=float(ah*bh+ch);
+ #elif HPR_OP == 2
+ result=fma(float(ah),float(bh),float(ch));
+ #else
+ precise float16_t product=ah*bh;
+ precise float16_t answer=product+ch;
+ result=float(answer);
+ #endif
+ b.v[i]=floatBitsToUint(result);b.v[64+i]=gl_SubgroupSize;
+#elif TEST >= 42
+ #define HPO_KIND ((TEST-42)%9)
+ float source=uintBitsToFloat(b.v[128+i]);
+ float16_t x=float16_t(source);
+ #if HPO_KIND == 1 || HPO_KIND == 5
+ vec2 by=unpackHalf2x16(coefficients.b),cz=unpackHalf2x16(coefficients.c);
+ #else
+ vec2 by=unpackHalf2x16(b.v[256+i]),cz=unpackHalf2x16(b.v[320+i]);
+ #endif
+ #if HPO_KIND == 8
+ float16_t y=float16_t(by.y),z=float16_t(cz.y);
+ #else
+ float16_t y=float16_t(by.x),z=float16_t(cz.x);
+ #endif
+ #if HPO_KIND == 2
+ x=-x;
+ #elif HPO_KIND == 3
+ x=abs(x);z=-z;
+ #endif
+ float result;
+ #if HPO_KIND == 6
+ result=fma(float(x),float(y),float(z));
+ #elif HPO_KIND == 7
+ precise float16_t product=x*y;
+ precise float16_t answer=product+z;
+ result=float(answer);
+ #elif HPO_KIND == 4 || HPO_KIND == 5
+ result=float(x*y+z);
+ #else
+ result=float(fma(x,y,z));
+ #endif
+ b.v[i]=floatBitsToUint(result);b.v[64+i]=gl_SubgroupSize;
+#elif TEST >= 24
+ #define HP_KIND ((TEST-24)%6)
+ float source;
+ #if HP_KIND == 0
+ source=float(b.v[192+i]);
+ #else
+ source=uintBitsToFloat(b.v[128+i]);
+ #endif
+ float16_t answer;
+ #if HP_KIND == 3
+ answer=float16_t(fma(source,1.5,0.5));
+ #elif HP_KIND == 4
+ precise float16_t x=float16_t(source);
+ precise float16_t product=x*float16_t(1.5);
+ precise float16_t sum=product+float16_t(0.5);
+ answer=sum;
+ #elif HP_KIND == 5
+ float16_t x=float16_t(source);
+ float16_t y=float16_t(unpackHalf2x16(b.v[256+i]).x);
+ float16_t z=float16_t(unpackHalf2x16(b.v[320+i]).x);
+ answer=fma(x,y,z);
+ #elif HP_KIND == 2
+ float16_t x=float16_t(source);
+ answer=fma(x,float16_t(1.5),float16_t(0.5));
+ #else
+ float16_t x=float16_t(source);
+ answer=x*float16_t(1.5)+float16_t(0.5);
+ #endif
+ b.v[i]=floatBitsToUint(float(answer));
+ b.v[64+i]=gl_SubgroupSize;
+#elif TEST >= 15
+ f16vec2 x=f16vec2(unpackHalf2x16(b.v[128+i]));
+ f16vec2 y=f16vec2(unpackHalf2x16(b.v[192+i]));
+ f16vec2 z=f16vec2(unpackHalf2x16(b.v[256+i]));
+ f16vec2 answer;
+ #if ((TEST-15)%3) == 0
+ answer.x=fma(x.x,y.x,z.x);
+ answer.y=fma(x.y,y.y,z.y);
+ #elif ((TEST-15)%3) == 1
+ answer=fma(x,y,z);
+ #else
+ precise f16vec2 product=x*y;
+ precise f16vec2 sum=product+z;
+ answer=sum;
+ #endif
+ b.v[i]=packHalf2x16(vec2(answer));
+ b.v[64+i]=gl_SubgroupSize;
+#elif TEST == 1
  b.v[i]=(gl_SubgroupSize<<16)|subgroupAdd(1u);
 #elif TEST == 2
  float16_t x=float16_t(float(b.v[64+i]));

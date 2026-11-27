@@ -126,7 +126,7 @@ with tempfile.TemporaryDirectory() as tmp:
     lines = ['#pragma once', '#include <cstdint>']
     compiler=subprocess.check_output([glslc,'--version'],text=True).strip()
     lines.append('static constexpr const char* fma_compiler_metadata = '+json.dumps(compiler)+';')
-    for i in (0,1,2,3,5,4,6,7,8,9,10,11,12,13,14,*range(15,177)):
+    for i in (0,1,2,3,5,4,6,7,8,9,10,11,12,13,14,*range(15,189)):
         spv = pathlib.Path(tmp) / f'test{i}.spv'
         if i in (6,7,12,13,14):
             assembler, validator = shutil.which('spirv-as'), shutil.which('spirv-val')

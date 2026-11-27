@@ -3,7 +3,7 @@
 #include <ostream>
 #include <iomanip>
 namespace hp_extra {
-constexpr int SPECIAL_FIRST=129, BENCH_FIRST=165, END=177;
+constexpr int SPECIAL_FIRST=129, BENCH_FIRST=165, DYNAMIC_FIRST=177, END=189;
 constexpr unsigned LANES=64, ITERATIONS=256, ACCUMULATORS=4, MAX_GROUPS=32;
 constexpr unsigned OUTPUT_BASE=640, BUFFER_WORDS=OUTPUT_BASE+MAX_GROUPS*LANES*ACCUMULATORS;
 constexpr uint32_t fp32_cases[]={
@@ -19,8 +19,8 @@ constexpr uint16_t halves[][3]={
 constexpr uint32_t sentinel(unsigned lane){return ((0xb400u+(lane&63u))<<16)|(0x3400u+(lane&63u));}
 constexpr unsigned position(int id){return unsigned((id-SPECIAL_FIRST)%12/4);}
 constexpr unsigned operation(int id){return unsigned((id-SPECIAL_FIRST)%4);}
-constexpr unsigned groups(int id){return id>=BENCH_FIRST+6?32u:1u;}
-constexpr unsigned benchKind(int id){return unsigned((id-BENCH_FIRST)%6/2);}
+constexpr unsigned groups(int id){return id>=DYNAMIC_FIRST?((id-DYNAMIC_FIRST)>=6?32u:1u):(id>=BENCH_FIRST+6?32u:1u);}
+constexpr unsigned benchKind(int id){return id>=DYNAMIC_FIRST?0u:unsigned((id-BENCH_FIRST)%6/2);}
 constexpr bool dependent(int id){return (id-BENCH_FIRST)%2==0;}
 constexpr bool modeSupported(unsigned mode,bool preserve16,bool preserve32,bool flush16,bool flush32,bool signed16,bool signed32){
  return mode==0||(mode<=2&&signed16&&signed32&&(mode==1?(preserve16&&preserve32):(flush16&&flush32)));
@@ -36,6 +36,7 @@ inline void initializeBench(uint32_t* d){
  for(unsigned i=0;i<LANES;i++){
   // Finite, nonconstant per-lane operands. Packed components have distinct values.
   d[128+i]=0x3e000000u+(i<<15);
+  d[576+i]=ITERATIONS;
   d[192+i]=0x3bfe3bffu;
   d[256+i]=0x08000400u;
   for(unsigned k=0;k<4;k++)d[320+64*k+i]=((0x3500u+k*32u+i)<<16)|(0x3000u+k*32u+i);

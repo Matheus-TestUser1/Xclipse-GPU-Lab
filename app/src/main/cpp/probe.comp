@@ -39,7 +39,36 @@ layout(push_constant) uniform Coefficients { uint b; uint c; } coefficients;
 #endif
 void main() {
  uint i=gl_LocalInvocationID.x;
-#if TEST >= 165
+#if TEST >= 177
+ #define DPOS (((TEST-177)%6)/2)
+ #define DPROM ((TEST-177)%2)
+ #if DPROM
+  #define DT float
+  #define DO(v) float(v)
+ #else
+  #define DT float16_t
+  #define DO(v) float16_t(v)
+ #endif
+ #define DS(k) DO(float16_t(unpackHalf2x16(b.v[320+64*(k)+i]).x))
+ #if DPOS == 0
+  #define DF(x) fma(DO(rh),DO(float16_t(x)),DO(coef))
+ #elif DPOS == 1
+  #define DF(x) fma(DO(float16_t(x)),DO(rh),DO(coef))
+ #else
+  #define DF(x) fma(DO(float16_t(x)),DO(coef),DO(rh))
+ #endif
+ DT a0=DS(0),a1=DS(1),a2=DS(2),a3=DS(3);
+ float raw=uintBitsToFloat(b.v[128+i]);
+ float16_t coef=float16_t(0.5);
+ uint count=min(b.v[576+i],256u);
+ for(uint j=0u;j<count;j++){
+  float16_t rh=float16_t(raw+float(j)*(1.0/4096.0));
+  a0=DF(a0);a1=DF(a1);a2=DF(a2);a3=DF(a3);
+ }
+ uint dest=640u+4u*(gl_WorkGroupID.x*64u+i);
+ b.v[dest]=floatBitsToUint(float(a0));b.v[dest+1]=floatBitsToUint(float(a1));
+ b.v[dest+2]=floatBitsToUint(float(a2));b.v[dest+3]=floatBitsToUint(float(a3));
+#elif TEST >= 165
  #define BKIND (((TEST-165)%6)/2)
  #define BDEPEND ((TEST-165)%2==0)
  #if BKIND == 0

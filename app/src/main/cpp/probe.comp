@@ -34,9 +34,44 @@ layout(set=0,binding=0,std430) buffer B { uint v[]; } b;
 #if TEST == 5
 shared uint scratch[64];
 #endif
+#if TEST >= 42 && (((TEST-42)%9)==1 || ((TEST-42)%9)==5)
+layout(push_constant) uniform Coefficients { uint b; uint c; } coefficients;
+#endif
 void main() {
  uint i=gl_LocalInvocationID.x;
-#if TEST >= 24
+#if TEST >= 42
+ #define HPO_KIND ((TEST-42)%9)
+ float source=uintBitsToFloat(b.v[128+i]);
+ float16_t x=float16_t(source);
+ #if HPO_KIND == 1 || HPO_KIND == 5
+ vec2 by=unpackHalf2x16(coefficients.b),cz=unpackHalf2x16(coefficients.c);
+ #else
+ vec2 by=unpackHalf2x16(b.v[256+i]),cz=unpackHalf2x16(b.v[320+i]);
+ #endif
+ #if HPO_KIND == 8
+ float16_t y=float16_t(by.y),z=float16_t(cz.y);
+ #else
+ float16_t y=float16_t(by.x),z=float16_t(cz.x);
+ #endif
+ #if HPO_KIND == 2
+ x=-x;
+ #elif HPO_KIND == 3
+ x=abs(x);z=-z;
+ #endif
+ float result;
+ #if HPO_KIND == 6
+ result=fma(float(x),float(y),float(z));
+ #elif HPO_KIND == 7
+ precise float16_t product=x*y;
+ precise float16_t answer=product+z;
+ result=float(answer);
+ #elif HPO_KIND == 4 || HPO_KIND == 5
+ result=float(x*y+z);
+ #else
+ result=float(fma(x,y,z));
+ #endif
+ b.v[i]=floatBitsToUint(result);b.v[64+i]=gl_SubgroupSize;
+#elif TEST >= 24
  #define HP_KIND ((TEST-24)%6)
  float source;
  #if HP_KIND == 0

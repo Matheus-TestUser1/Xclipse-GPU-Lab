@@ -30,7 +30,7 @@ jobs:
       - name: Test capability classification and registry generator
         run: |
           mkdir -p /tmp/gpulab-test
-          javac -d /tmp/gpulab-test app/src/main/java/dev/xclipse/gpulab/{Audit,Kernel,Libraries,Elf,DeepLibraries,Research,ReportBundle,IsaLab,ArchitectureLab,SgpuInspector,FmaLab,HpLab}.java tests/AuditTest.java tests/ResearchTest.java tests/ReportBundleTest.java tests/IsaLabTest.java tests/ArchitectureLabTest.java tests/SgpuInspectorTest.java tests/KernelTest.java tests/FmaLabTest.java tests/HpLabTest.java
+          javac -d /tmp/gpulab-test app/src/main/java/dev/xclipse/gpulab/{Audit,Kernel,Libraries,Elf,DeepLibraries,Research,ReportBundle,IsaLab,ArchitectureLab,SgpuInspector,FmaLab,HpLab,HpOperandLab}.java tests/AuditTest.java tests/ResearchTest.java tests/ReportBundleTest.java tests/IsaLabTest.java tests/ArchitectureLabTest.java tests/SgpuInspectorTest.java tests/KernelTest.java tests/FmaLabTest.java tests/HpLabTest.java tests/HpOperandLabTest.java
           java -cp /tmp/gpulab-test dev.xclipse.gpulab.AuditTest
           java -cp /tmp/gpulab-test dev.xclipse.gpulab.ResearchTest
           java -cp /tmp/gpulab-test dev.xclipse.gpulab.ReportBundleTest
@@ -40,10 +40,13 @@ jobs:
           java -cp /tmp/gpulab-test dev.xclipse.gpulab.KernelTest
           java -cp /tmp/gpulab-test dev.xclipse.gpulab.FmaLabTest
           java -cp /tmp/gpulab-test dev.xclipse.gpulab.HpLabTest
+          java -cp /tmp/gpulab-test dev.xclipse.gpulab.HpOperandLabTest
           g++ -std=c++17 -O2 -Wall -Wextra -fsanitize=undefined tests/fma_reference_test.cpp -o /tmp/gpulab-test/fma-reference-test
           /tmp/gpulab-test/fma-reference-test
           g++ -std=c++17 -O2 -Wall -Wextra -fsanitize=undefined tests/hp_reference_test.cpp -o /tmp/gpulab-test/hp-reference-test
           /tmp/gpulab-test/hp-reference-test
+          g++ -std=c++17 -O2 -Wall -Wextra -fsanitize=undefined tests/hp_operand_reference_test.cpp -o /tmp/gpulab-test/hpo-reference-test
+          /tmp/gpulab-test/hpo-reference-test
           python3 tools/generate_compute.py "$(command -v glslc)" app/src/main/cpp/probe.comp /tmp/gpulab-test/compute_generated.inc
           python3 tools/generate_registry.py "$VULKAN_HEADERS/../registry/vk.xml" /tmp/gpulab-test/registry.inc
           test -s /tmp/gpulab-test/registry.inc

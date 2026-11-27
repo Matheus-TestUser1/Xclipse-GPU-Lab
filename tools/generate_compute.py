@@ -126,7 +126,7 @@ with tempfile.TemporaryDirectory() as tmp:
     lines = ['#pragma once', '#include <cstdint>']
     compiler=subprocess.check_output([glslc,'--version'],text=True).strip()
     lines.append('static constexpr const char* fma_compiler_metadata = '+json.dumps(compiler)+';')
-    for i in (0,1,2,3,5,4,6,7,8,9,10,11,12,13,14,*range(15,129)):
+    for i in (0,1,2,3,5,4,6,7,8,9,10,11,12,13,14,*range(15,177)):
         spv = pathlib.Path(tmp) / f'test{i}.spv'
         if i in (6,7,12,13,14):
             assembler, validator = shutil.which('spirv-as'), shutil.which('spirv-val')
@@ -139,7 +139,33 @@ with tempfile.TemporaryDirectory() as tmp:
                 ok=subprocess.run([validator,'--target-env','vulkan1.2',str(spv)]).returncode==0
         else:
             ok=subprocess.run([glslc, '--target-env=vulkan1.2', f'-DTEST={i}', '-fshader-stage=compute', src, '-o', str(spv)]).returncode==0
-        if ok and i>=15:
+        if ok and i>=129:
+            disassembler, assembler, validator = (shutil.which(x) for x in ('spirv-dis','spirv-as','spirv-val'))
+            if not all((disassembler,assembler,validator)):
+                raise SystemExit('HP extra requires SPIRV-Tools')
+            text=subprocess.check_output([disassembler,str(spv)],text=True)
+            if not re.search(r'OpTypeFloat\s+16',text) or not re.search(r'OpExtInst .* Fma ',text):
+                raise SystemExit(f'HP extra {i} lost Float16/Fma')
+            if i<165:
+                half_type=re.search(r'(%\w+)\s*=\s*OpTypeFloat\s+16',text).group(1)
+                if not re.search(r'OpFConvert\s+'+re.escape(half_type)+r'\s',text):
+                    raise SystemExit(f'HP extra {i} lost FP16 conversion')
+                mode=(i-129)//12
+                if mode:
+                    entry=re.search(r'OpEntryPoint GLCompute (%\w+)',text).group(1)
+                    denorm='DenormPreserve' if mode==1 else 'DenormFlushToZero'
+                    caps=[denorm,'SignedZeroInfNanPreserve']
+                    for cap in caps:
+                        text=text.replace('OpCapability Shader','OpCapability Shader\n               OpCapability '+cap,1)
+                    modes=''.join('OpExecutionMode '+entry+' '+cap+' '+str(width)+'\n               ' for cap in caps for width in (16,32))
+                    text=text.replace('OpExecutionMode '+entry+' LocalSize',modes+'OpExecutionMode '+entry+' LocalSize',1)
+            else:
+                if 'OpLoopMerge' not in text or len(re.findall(r'OpExtInst .* Fma ',text))!=4:
+                    raise SystemExit(f'HP benchmark {i} lost loop or four FMA calls')
+            asm=pathlib.Path(tmp)/f'extra{i}.spvasm';asm.write_text(text)
+            subprocess.run([assembler,'--target-env','vulkan1.2',str(asm),'-o',str(spv)],check=True)
+            subprocess.run([validator,'--target-env','vulkan1.2',str(spv)],check=True)
+        if ok and 15<=i<129:
             # Require real F16 arithmetic, validate every new shader, and retain a
             # byte-for-byte fingerprint of the SPIR-V that will reach the driver.
             disassembler, assembler, validator = (shutil.which(x) for x in ('spirv-dis','spirv-as','spirv-val'))
